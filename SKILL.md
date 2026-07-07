@@ -69,7 +69,7 @@ sips -s format jpeg "<input.heic>" --out /tmp/books-scan-tmp.jpg
 4. 检查重复书名 → 若已有，告知跳过
 5. 生成新记录，`status` 默认 `"unread"`，`added` 为今日日期
 6. **写入前校验**：description 和 author_bio 不含中文引号，若有则替换为直引号
-7. 追加到 `my_lovely_library/books.json`，同步更新 `my_lovely_library/books.md`
+8. 追加到 `my_lovely_library/books.json`，同步更新 `my_lovely_library/books.md`
 8. 输出确认：
 
 ```
@@ -101,7 +101,8 @@ Found N images. Run a trial scan of the first 20 to check accuracy before proces
   2. No, scan all N now
 ```
 
-3. HEIC 文件先转 jpg，识别后删除临时文件
+3. 确保 `my_lovely_library/` 目录存在（`mkdir -p my_lovely_library`）
+4. HEIC 文件先转 jpg，识别后删除临时文件
 4. 逐张识别（逻辑同 `/books scan`），每张约 1–3 秒
 4. 跳过已存在书目（书名匹配）
 5. 写入前对所有 description / author_bio 校验中文引号，自动替换
@@ -139,39 +140,40 @@ Rename guide saved to my_lovely_library/rename-guide.txt
 
 **执行步骤**：
 
-1. 用 curl 查询 Open Library API：
+1. 用 curl 查询 Open Library API（**必须加 `-L` 跟随重定向**，ISBN 端点会 302 跳转）：
 
 ```bash
-curl -s "https://openlibrary.org/isbn/<ISBN>.json"
+curl -sL "https://openlibrary.org/isbn/<ISBN>.json"
 ```
 
 2. 解析返回 JSON，提取以下字段：
    - `title` → 书名
    - `authors[0].key` → 作者 key（格式 `/authors/OL12345A`），需再发一次请求：
      ```bash
-     curl -s "https://openlibrary.org/authors/OL12345A.json"
+     curl -sL "https://openlibrary.org/authors/OL12345A.json"
      ```
-     从中提取 `name` 和 `bio`（若有）
-   - `publish_date` → 出版年（提取年份数字）
+     从中提取 `name`；`bio` 字段在 Open Library 中经常为空，**不依赖它**
+   - `publish_date` → 出版年（提取年份数字，如 `"2021"` 或 `"October 5, 2021"` 都取四位数字）
    - `publishers[0]` → 出版社（用于推断国家，非直接字段）
-   - `number_of_pages`、`subjects` → 可选，用于辅助判断 category
+   - `subjects` → 可选，辅助判断 category
 
-3. Open Library **不提供**以下字段，由 Claude 根据已知书名/作者补全：
+3. Open Library **不提供**以下字段，由 Claude 根据已知书名/作者知识补全：
    - `country` — 根据作者国籍/出版商推断
    - `category` — 根据书名和 subjects 判断
    - `description` — Claude 写一句话内容描述
-   - `author_bio` — Claude 写一句话作者简介
+   - `author_bio` — Claude 写一句话作者简介（Open Library bio 经常为空，Claude 始终自行撰写）
    - `author_gender` — Claude 根据作者姓名和知识判断
 
-4. 读取 `my_lovely_library/books.json`，检查是否已有同名书 → 已有则告知跳过
+4. 确保 `my_lovely_library/` 目录存在（`mkdir -p my_lovely_library`）
+5. 读取 `my_lovely_library/books.json`，检查是否已有同名书 → 已有则告知跳过
 
-5. 组装完整记录，`status` 默认 `"unread"`，`added` 为今日，`photo` 为 `null`
+6. 组装完整记录，`status` 默认 `"unread"`，`added` 为今日，`photo` 为 `null`
 
-6. **写入前校验**：description / author_bio 不含中文引号，有则自动替换
+7. **写入前校验**：description / author_bio 不含中文引号，有则自动替换
 
 7. 追加到 `my_lovely_library/books.json`，同步更新 `my_lovely_library/books.md`
 
-8. 输出确认：
+9. 输出确认：
 
 ```
 ✓ Added via ISBN (Open Library)
@@ -235,8 +237,10 @@ Library · 16 books (1 reading · 15 unread)
 **执行步骤**：
 1. 在 `my_lovely_library/books.json` 中模糊匹配书名（不区分大小写）
 2. 唯一匹配 → 直接更新；多个匹配 → 列出让用户确认编号
-3. 更新 `my_lovely_library/books.json` 和 `my_lovely_library/books.md`
-4. 输出确认：
+3. 确保 `my_lovely_library/` 目录存在（`mkdir -p my_lovely_library`）
+4. 确保 `my_lovely_library/` 目录存在（`mkdir -p my_lovely_library`）
+5. 更新 `my_lovely_library/books.json` 和 `my_lovely_library/books.md`
+6. 输出确认：
 
 ```
 ✓ Updated
@@ -273,8 +277,9 @@ Library · 16 books (1 reading · 15 unread)
 **执行步骤**：
 1. 模糊匹配书名；多结果时列出让用户选编号
 2. 验证评分为 1–5 的整数，否则提示重新输入
-3. 更新 `my_lovely_library/books.json` 中该书的 `rating` 字段，同步 `my_lovely_library/books.md`
-4. 输出确认：
+3. 确保 `my_lovely_library/` 目录存在（`mkdir -p my_lovely_library`）
+4. 更新 `my_lovely_library/books.json` 中该书的 `rating` 字段，同步 `my_lovely_library/books.md`
+5. 输出确认：
 
 ```
 ✓ Rated
@@ -303,8 +308,9 @@ Current note: "读了三遍，每次都有新发现"
   2. Replace with new note
 ```
 
-3. 更新 `my_lovely_library/books.json` 中该书的 `notes` 字段（追加时用换行分隔），同步 `my_lovely_library/books.md`
-4. 输出确认：
+3. 确保 `my_lovely_library/` 目录存在（`mkdir -p my_lovely_library`）
+4. 更新 `my_lovely_library/books.json` 中该书的 `notes` 字段（追加时用换行分隔），同步 `my_lovely_library/books.md`
+5. 输出确认：
 
 ```
 ✓ Note saved
@@ -1196,8 +1202,9 @@ Bookmark it. Run /books deploy again after adding new books to update.
 
 **执行步骤**：
 1. 读取 `my_lovely_library/books.json`
-2. 写出格式化的 `my_lovely_library/books-export.json`（indent=2）
-3. 输出确认：
+2. 确保 `my_lovely_library/` 目录存在（`mkdir -p my_lovely_library`）
+3. 写出格式化的 `my_lovely_library/books-export.json`（indent=2）
+4. 输出确认：
 
 ```
 ✓ Exported: my_lovely_library/books-export.json
