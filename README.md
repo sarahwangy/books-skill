@@ -1,116 +1,385 @@
-# books · Personal Library Skill for Claude Code
+# Books — Personal Library Skill for Claude Code
 
-Turn photos of your bookshelf into a structured, searchable library — with an interactive HTML dashboard.
+A coding-agent skill that turns photos of your bookshelf into a structured, searchable library — complete with an interactive analytics dashboard, four visual themes, one-click PDF export, and Vercel deployment for multi-device access.
 
-**No API keys. No accounts. No internet required.**
-
-![books-report dashboard showing cover thumbnails, charts, and search](docs/preview.png)
+No API keys. No accounts. No internet required to scan.
 
 ---
 
-## What it does
+## What This Does
 
-Snap a photo of any book → Claude reads the cover → instantly added to your local library.
+**Books** solves a specific problem: you have a shelf full of books and no idea what you own, what you've read, or how your reading actually breaks down by country, gender, or category.
+
+Point it at a photo → Claude reads the cover → the book is in your library. Batch-scan a whole shelf in one go. Open the dashboard, click a chart bar to filter by country, search by keyword, sort any column. Print the table to PDF. Deploy to Vercel so your phone and laptop see the same library.
 
 ```
 /books scan ~/Photos/bookshelf/IMG_0124.HEIC
 /books scan-folder ~/Photos/bookshelf/
+/books list
 /books search memoir
 /books status "Top End Girl" read
 /books edit "Top End Girl" year 2021
 /books stats
+/books deploy
 /books export json
+```
+
+---
+
+## Key Features
+
+- **iPhone HEIC support** — Photos from your camera roll work directly. No manual conversion needed; the skill calls macOS `sips` automatically.
+- **Batch scanning** — Point at a folder, walk away. The skill identifies books, skips internal pages and non-book images, flags duplicates, and writes everything in one pass.
+- **Author bio generation** — Every scan produces a one-sentence author background alongside the book metadata.
+- **Interactive dashboard** — Click chart bars to filter, search in real time, sort any column, stack multiple filters. All state is shared — a country click + a search query work together.
+- **Four visual themes** — Classic, Dark, Warm, or Ocean. Chosen at report generation time; the entire colour system (background, cards, charts, tags) switches together.
+- **Print / PDF** — One button in the browser. Print CSS hides charts and controls, leaving a clean book list — correctly paginated, covers included if present.
+- **Vercel deploy** — One command publishes the dashboard to a permanent URL. Same URL every time; bookmark it on your phone.
+- **Cover thumbnails** — Embedded as base64 in the HTML. No broken links, no external paths, works offline.
+- **JSON-safe writing** — Every write automatically strips Chinese curly quotes from text fields before touching `books.json`.
+- **English-first, Chinese-respectful** — Non-Chinese books use English for all metadata fields. Chinese books stay fully Chinese.
+
+---
+
+## Installation
+
+### Manual (recommended)
+
+Copy `SKILL.md` into your project's skills directory:
+
+```bash
+# Project-level (this project only)
+mkdir -p .agents/skills/books
+cp SKILL.md .agents/skills/books/
+
+# Global (all projects)
+mkdir -p ~/.claude/skills/books
+cp SKILL.md ~/.claude/skills/books/
+```
+
+Then invoke it in Claude Code:
+
+```
+/books scan ~/Photos/IMG_0124.HEIC
+```
+
+### Clone directly
+
+```bash
+# Project-level
+git clone https://github.com/sarahwangy/books-skill .agents/skills/books
+
+# Global
+git clone https://github.com/sarahwangy/books-skill ~/.claude/skills/books
 ```
 
 ---
 
 ## Commands
 
-| Command | What it does |
-|---------|-------------|
-| `/books scan <image>` | Scan one photo, append to library |
-| `/books scan-folder <path>` | Batch scan entire folder |
-| `/books status <title> <status>` | Update reading status (`unread` / `reading` / `read` / `paused`) |
-| `/books edit <title> <field> <value>` | Fix any field without rescanning |
-| `/books search <keyword>` | Search by title, author, country, category, or description |
-| `/books stats` | Generate interactive HTML dashboard |
-| `/books export json` | Export clean JSON for Notion / Obsidian |
+### `/books scan <image>`
+
+Scans a single photo and appends the book to your library.
+
+```
+/books scan ~/Photos/IMG_0124.HEIC
+/books scan ./bookshelf/being-you.jpg
+```
+
+- Accepts JPG, PNG, HEIC, WEBP
+- HEIC files are converted via `sips` automatically — no extra tools needed
+- Recognises: title, author, year, country, category, description, author bio
+- Skips duplicates (matched by title)
+- Leaves uncertain fields as `null` rather than guessing
+
+**Output:**
+```
+✓ Added
+  Title:    Being You: A New Science of Consciousness
+  Author:   Anil Seth (M · UK)
+  Bio:      British neuroscientist at University of Sussex researching consciousness.
+  Category: Popular Science · 2021
+  Status:   unread
+
+Library now has 16 books.
+```
 
 ---
 
-## Output files
+### `/books scan-folder <path>`
+
+Batch-scans every image in a folder.
+
+```
+/books scan-folder ~/Photos/bookshelf/
+```
+
+- Processes JPG, PNG, HEIC, WEBP
+- Skips non-book images (internal pages, brochures, receipts) — flags them in the summary
+- Skips titles already in the library
+- Writes `books.json` and `books.md` once at the end, not after every photo
+- Generates `rename-guide.txt` with suggested filenames in `Category_Title_Author` format
+
+**Output:**
+```
+Scan complete
+  Identified:            14 books
+  Skipped (duplicate):    2
+  Skipped (non-book):     3 files — IMG_0121.HEIC, IMG_0122.HEIC, IMG_0174.HEIC
+
+New additions:
+  · Being You — Anil Seth (Popular Science)
+  · Top End Girl — Miranda Tapsell (Memoir)
+  · 南极之南 — 毕淑敏（游记散文）
+
+Rename guide saved to rename-guide.txt
+```
+
+---
+
+### `/books list [status]`
+
+Quick terminal overview — no browser needed.
+
+```
+/books list
+/books list reading
+/books list read
+/books list unread
+```
+
+**Output:**
+```
+Library · 16 books (1 reading · 15 unread)
+
+ # | Title                                    | Author              | Category        | Status
+---|------------------------------------------|---------------------|-----------------|--------
+ 1 | Being You                                | Anil Seth           | Popular Science | reading
+ 2 | Top End Girl                             | Miranda Tapsell     | Memoir          | unread
+ 3 | 南极之南                                  | 毕淑敏              | 游记散文         | unread
+
+Tip: /books stats to open interactive dashboard
+```
+
+---
+
+### `/books status <title keyword> <status>`
+
+Updates reading status with fuzzy title matching.
+
+```
+/books status "Being You" reading
+/books status anil read
+/books status "Top End" paused
+```
+
+Status values: `unread` · `reading` · `read` · `paused`
+
+If the keyword matches more than one book, the skill lists the matches and asks you to pick by number.
+
+---
+
+### `/books edit <title keyword> <field> <new value>`
+
+Corrects any field without rescanning.
+
+```
+/books edit "Top End Girl" year 2021
+/books edit anil category "Popular Science"
+/books edit "Big Feelings" author_bio "American workplace emotion researcher and illustrator"
+/books edit "南极之南" status read
+```
+
+Editable fields: `title` · `author` · `author_gender` · `year` · `country` · `category` · `description` · `author_bio` · `status` · `photo`
+
+Curly-quote sanitisation runs automatically on `description` and `author_bio` before writing.
+
+---
+
+### `/books search <keyword>`
+
+Searches across title, author, country, category, and description.
+
+```
+/books search UK
+/books search memoir
+/books search "Annie Duke"
+/books search 冲浪
+```
+
+Returns a Markdown table sorted by relevance. If nothing matches: `No books found matching "keyword"`.
+
+---
+
+### `/books stats [theme]`
+
+Generates `books-report.html` — a fully self-contained interactive dashboard.
+
+```
+/books stats
+/books stats dark
+/books stats warm
+```
+
+If no theme is given, the skill asks you to choose:
+
+```
+Choose a dashboard theme:
+
+  1. Classic  — warm beige, steel blue     (default)
+  2. Dark     — deep navy, amber
+  3. Warm     — ivory, terracotta
+  4. Ocean    — soft teal, dark slate
+
+Which theme? (1–4, or press Enter for Classic)
+```
+
+The dashboard includes:
+- **4 stat cards** — total books, female author %, countries, categories
+- **3 interactive charts** — country bar, gender pie, category bar; click any segment to filter
+- **Active filter chips** — shows current filters; click ✕ to clear individually
+- **Real-time search** — filters across title, author, country, category simultaneously
+- **Sortable table** — click any column header to sort ascending/descending
+- **Cover thumbnails** — base64-embedded, no external paths
+- **⎙ Print / PDF button** — browser print dialog with clean print CSS
+
+The HTML file is fully self-contained. Send it to anyone; it needs no server.
+
+---
+
+### `/books deploy`
+
+Publishes `books-report.html` to a permanent Vercel URL.
+
+```
+/books deploy
+```
+
+- Installs Vercel CLI automatically if not present
+- Prompts Vercel login on first run (free account)
+- Uses a fixed project name (`my-books-library`) so the URL never changes
+- Run again after adding new books to update the live version
+
+**Output:**
+```
+✓ Deployed: https://my-books-library.vercel.app
+
+Open this URL on any device — phone, iPad, or another computer.
+Bookmark it. Run /books deploy again after adding new books to update.
+```
+
+---
+
+### `/books export json`
+
+Exports a clean, formatted JSON file for Notion, Obsidian, or any other tool.
+
+```
+/books export json
+```
+
+Writes `books-export.json` with `indent=2` formatting. Same schema as `books.json`.
+
+---
+
+## Dashboard Themes
+
+### Classic
+Warm beige canvas, steel-blue accent, soft sand borders. The default. Works in any light and feels like a well-organised reading nook.
+
+### Dark
+Deep navy background (`#0f172a`), amber accent, slate card surfaces. Chart colours shift to warm yellows and teals. Comfortable for evening reading sessions.
+
+### Warm
+Ivory canvas, terracotta accent, dusty borders. Earth tones throughout — tags in sand and burnt orange. Feels like a handwritten book journal.
+
+### Ocean
+Soft teal background, dark slate accent, clean white cards. Calm and airy. Chart colours run through teal and aquamarine.
+
+---
+
+## Output Files
 
 | File | Description |
 |------|-------------|
-| `books.json` | Primary data store |
-| `books.md` | Markdown table (paste into any note app) |
+| `books.json` | Primary data store — source of truth |
+| `books.md` | Markdown table — paste into any note app |
 | `books-report.html` | Self-contained interactive dashboard |
+| `books-export.json` | Clean export for Notion / Obsidian / other tools |
 | `rename-guide.txt` | Photo rename suggestions after batch scan |
-| `books-export.json` | Clean JSON export |
 
 ---
 
-## Features
+## Data Format
 
-- **HEIC support** — iPhone photos work directly, no manual conversion needed
-- **Smart filtering** — auto-skips internal pages, travel brochures, non-book images
-- **Author bio** — one-sentence author background generated alongside scan
-- **Interactive dashboard** — click charts to filter, search in real-time, sort by any column
-- **Cover thumbnails** — embedded as base64, no broken links, works offline
-- **JSON-safe** — no curly quotes in text fields
-
----
-
-## Install
-
-```bash
-npx skills add https://github.com/sarahwangy/books-skill
-```
-
-Or manually copy `SKILL.md` into your project's `.agents/skills/books/` directory.
-
----
-
-## Photo tips
-
-- Works with hand-held photos, angled shots, HEIC / JPG / PNG
-- One book per photo for best results
-- Front cover gives the most accurate recognition
-- If the cover is unclear, Claude will leave uncertain fields as `null` rather than guess
-
----
-
-## Data format
-
-Each book record in `books.json`:
+Each record in `books.json`:
 
 ```json
 {
-  "id": "b001",
+  "id": "b015",
   "title": "Being You: A New Science of Consciousness",
+  "title_original": null,
   "author": "Anil Seth",
-  "author_gender": "男",
-  "author_bio": "英国神经科学家，萨塞克斯大学教授，研究意识本质。",
+  "author_gender": "M",
   "year": 2021,
-  "country": "英国",
-  "category": "科普",
-  "description": "神经科学家从脑科学角度探索意识的本质",
+  "country": "UK",
+  "category": "Popular Science",
+  "description": "Neuroscientist challenges our understanding of self and reality through brain science.",
+  "author_bio": "British neuroscientist at the University of Sussex researching the nature of consciousness.",
   "status": "unread",
   "photo": "IMG_0197.HEIC",
   "added": "2026-07-07"
 }
 ```
 
+**Language rule:** Chinese books (Chinese title or author) keep all fields in Chinese. All other books use English for `country`, `category`, `description`, and `author_bio`.
+
+**Status values:** `unread` · `reading` · `read` · `paused`
+
+**Gender values:** `F` · `M` · `Group` · `Mixed` · `Unknown` (Chinese books: `女` · `男` · `机构`)
+
+---
+
+## Architecture
+
+The entire skill lives in a single `SKILL.md` file. No helper scripts, no dependencies to install, no build step.
+
+| Component | How it works |
+|-----------|-------------|
+| Vision recognition | Claude reads the cover image directly — no external OCR service |
+| HEIC conversion | macOS `sips` (built-in, zero install) |
+| Stats generation | A Python script embedded in `SKILL.md`; Claude writes it to `/tmp`, runs it, then deletes it |
+| Base64 encoding | Python `base64` module — no line-break issues from shell `base64` |
+| Deployment | Vercel CLI (`npx vercel`) — installed on first use |
+| Charts | HTML5 Canvas API — no chart library dependency |
+| Data | `books.json` flat file — no database, no schema migration |
+
+---
+
+## Roadmap
+
+Features under consideration, roughly in priority order:
+
+- **`/books isbn <number>`** — Look up a book by ISBN via Open Library (free, no API key). More accurate than cover recognition for title, author, and year.
+- **`/books rate <title> <1–5>`** — Star ratings, shown in the dashboard as a distribution chart.
+- **`/books note <title> <text>`** — Personal notes per book, visible on hover in the dashboard.
+- **`/books reading-log`** — Monthly reading pace, visible as a timeline.
+- **`/books suggest`** — Reading recommendation based on your existing library's patterns.
+
 ---
 
 ## Requirements
 
-- [Claude Code](https://claude.ai/code)
-- macOS (for HEIC conversion via `sips`) or convert photos to JPG first on other platforms
-- Python 3 (pre-installed on macOS) — used only for `stats` command
+| Requirement | Used for |
+|-------------|----------|
+| [Claude Code](https://claude.ai/code) | Running the skill |
+| macOS | HEIC conversion via `sips` (JPG/PNG work on any OS) |
+| Python 3 | Generating `books-report.html` (pre-installed on macOS) |
+| Node.js | `/books deploy` only — not needed for scanning or stats |
+| Vercel account (free) | `/books deploy` only |
 
 ---
 
-## Made with
+## License
 
-Built as a Claude Code skill. Scans real bookshelf photos using Claude Vision.
+MIT — use it, modify it, share it.
