@@ -1,6 +1,6 @@
 ---
 name: books
-description: 个人书库管理工具——扫描书籍封面照片，AI 识别书名/作者/类别/作者简介等信息，追加到本地书库，支持编辑、搜索、状态管理、统计报表和 JSON 导出。触发词：/books scan、/books scan-folder、/books list、/books edit、/books search、/books status、/books stats、/books deploy、/books export。
+description: 个人书库管理工具——扫描书籍封面照片，AI 识别书名/作者/类别/作者简介等信息，追加到本地书库，支持编辑、搜索、状态管理、统计报表和 JSON 导出。触发词：/books scan、/books scan-folder、/books isbn、/books list、/books edit、/books search、/books status、/books stats、/books deploy、/books export。
 ---
 
 # books · 个人书库 Skill
@@ -124,6 +124,77 @@ New additions:
   · 南极之南 — 毕淑敏（游记散文）
 
 Rename guide saved to rename-guide.txt
+```
+
+---
+
+## 命令：/books isbn \<ISBN\>
+
+**作用**：通过 ISBN 号码从 Open Library 查询书籍元数据，准确率高于封面识别，追加到书库。
+
+**ISBN 来源**：书背面条形码下方的 13 位数字（EAN-13），或书名页的 10 位旧 ISBN。
+
+**执行步骤**：
+
+1. 用 curl 查询 Open Library API：
+
+```bash
+curl -s "https://openlibrary.org/isbn/<ISBN>.json"
+```
+
+2. 解析返回 JSON，提取以下字段：
+   - `title` → 书名
+   - `authors[0].key` → 作者 key（格式 `/authors/OL12345A`），需再发一次请求：
+     ```bash
+     curl -s "https://openlibrary.org/authors/OL12345A.json"
+     ```
+     从中提取 `name` 和 `bio`（若有）
+   - `publish_date` → 出版年（提取年份数字）
+   - `publishers[0]` → 出版社（用于推断国家，非直接字段）
+   - `number_of_pages`、`subjects` → 可选，用于辅助判断 category
+
+3. Open Library **不提供**以下字段，由 Claude 根据已知书名/作者补全：
+   - `country` — 根据作者国籍/出版商推断
+   - `category` — 根据书名和 subjects 判断
+   - `description` — Claude 写一句话内容描述
+   - `author_bio` — Claude 写一句话作者简介
+   - `author_gender` — Claude 根据作者姓名和知识判断
+
+4. 读取 `books.json`，检查是否已有同名书 → 已有则告知跳过
+
+5. 组装完整记录，`status` 默认 `"unread"`，`added` 为今日，`photo` 为 `null`
+
+6. **写入前校验**：description / author_bio 不含中文引号，有则自动替换
+
+7. 追加到 `books.json`，同步更新 `books.md`
+
+8. 输出确认：
+
+```
+✓ Added via ISBN (Open Library)
+  ISBN:     9780008669713
+  Title:    Being You: A New Science of Consciousness
+  Author:   Anil Seth (M · UK)
+  Bio:      British neuroscientist at the University of Sussex researching consciousness.
+  Category: Popular Science · 2021
+  Status:   unread
+
+  Fields from Open Library: title, author, year
+  Fields inferred by Claude: country, category, description, author_bio, author_gender
+
+Library now has N books.
+```
+
+**API 返回为空或 404 时**：
+```
+✗ ISBN 9780000000000 not found in Open Library.
+  Try /books scan with a cover photo instead.
+```
+
+**示例**：
+```
+/books isbn 9780008669713
+/books isbn 0385737951
 ```
 
 ---

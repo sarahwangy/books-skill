@@ -72,6 +72,7 @@ git clone https://github.com/sarahwangy/books-skill .agents/skills/books
 |------|------|
 | `/books scan <图片>` | 扫描单张照片，追加到书库 |
 | `/books scan-folder <路径>` | 批量扫描文件夹（超 20 张先询问） |
+| `/books isbn <ISBN>` | 用 ISBN 号查 Open Library，比封面识别更准确 |
 | `/books list [状态]` | 终端快速列出书库，可按状态过滤 |
 | `/books status <书名> <状态>` | 更新阅读状态 |
 | `/books edit <书名> <字段> <新值>` | 修正任意字段，无需重新扫描 |
@@ -137,10 +138,9 @@ git clone https://github.com/sarahwangy/books-skill .agents/skills/books
 
 ## 后续路线图
 
-- `/books isbn <号码>` — 通过 ISBN 查 Open Library，比封面识别更准确
-- `/books rate <书名> <1–5>` — 星级评分，报表中显示评分分布
-- `/books note <书名> <文字>` — 添加私人备注，hover 可见
-- `/books suggest` — 根据现有书库模式推荐下一本读什么
+- `/books reading-log` — 按月显示阅读节奏，时间轴可视化
+- 封面扫描 + ISBN 交叉核对 — 扫描后用 ISBN 校验，提升 title/year 准确率
+- 多设备同步 — 目前 books.json 存本地；`/books deploy` 解决只读访问，未来版本考虑双向同步
 
 ---
 

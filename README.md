@@ -17,6 +17,7 @@ Point it at a photo → Claude reads the cover → the book is in your library. 
 ```
 /books scan ~/Photos/bookshelf/IMG_0124.HEIC
 /books scan-folder ~/Photos/bookshelf/
+/books isbn 9780008669713
 /books list
 /books search memoir
 /books status "Top End Girl" read
@@ -253,6 +254,36 @@ The HTML file is fully self-contained. Send it to anyone; it needs no server.
 
 ---
 
+### `/books isbn <ISBN>`
+
+Look up a book by its ISBN number via Open Library (free, no API key). More accurate than cover recognition for title, author, and year.
+
+```
+/books isbn 9780008669713
+/books isbn 0385737951
+```
+
+- ISBN is the 13-digit number under the barcode on the back cover (or the older 10-digit version)
+- Fetches title, author, and year from Open Library — Claude fills in country, category, description, author_bio, and author_gender
+- Clearly labels which fields came from Open Library vs Claude inference
+- Falls back gracefully if the ISBN isn't in Open Library's database
+
+**Output:**
+```
+✓ Added via ISBN (Open Library)
+  ISBN:     9780008669713
+  Title:    Being You: A New Science of Consciousness
+  Author:   Anil Seth (M · UK)
+  Bio:      British neuroscientist at the University of Sussex researching consciousness.
+  Category: Popular Science · 2021
+  Status:   unread
+
+  Fields from Open Library: title, author, year
+  Fields inferred by Claude: country, category, description, author_bio, author_gender
+```
+
+---
+
 ### `/books rate <title keyword> <1-5>`
 
 Rate a book 1–5 stars. Fuzzy title matching — no need for exact title.
@@ -414,11 +445,9 @@ The entire skill lives in a single `SKILL.md` file. No helper scripts, no depend
 
 Features under consideration, roughly in priority order:
 
-- **`/books isbn <number>`** — Look up a book by ISBN via Open Library (free, no API key). More accurate than cover recognition for title, author, and year.
-- **`/books rate <title> <1–5>`** — Star ratings, shown in the dashboard as a distribution chart.
-- **`/books note <title> <text>`** — Personal notes per book, visible on hover in the dashboard.
 - **`/books reading-log`** — Monthly reading pace, visible as a timeline.
-- **`/books suggest`** — Reading recommendation based on your existing library's patterns.
+- **`/books isbn` + cover verify** — After a cover scan, optionally cross-check the detected ISBN against Open Library to confirm title/year accuracy.
+- **Multi-device sync** — Right now `books.json` lives locally. Running `/books deploy` gets you read-only access anywhere; a future version could sync edits back.
 
 ---
 
