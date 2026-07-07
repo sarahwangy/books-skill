@@ -21,6 +21,9 @@ Point it at a photo → Claude reads the cover → the book is in your library. 
 /books search memoir
 /books status "Top End Girl" read
 /books edit "Top End Girl" year 2021
+/books rate "Being You" 5
+/books note "Being You" 意识是大脑主动建构的预测，读完彻底改变了我对感知的理解
+/books suggest
 /books stats
 /books deploy
 /books export json
@@ -247,6 +250,54 @@ The dashboard includes:
 - **⎙ Print / PDF button** — browser print dialog with clean print CSS
 
 The HTML file is fully self-contained. Send it to anyone; it needs no server.
+
+---
+
+### `/books rate <title keyword> <1-5>`
+
+Rate a book 1–5 stars. Fuzzy title matching — no need for exact title.
+
+```
+/books rate "Being You" 5
+/books rate anil 4
+```
+
+Rating is stored in `books.json` and shown in the stats dashboard.
+
+---
+
+### `/books note <title keyword> <text>`
+
+Add a personal note to a book — reading impressions, quotes, thoughts, anything. If a note already exists, the skill asks whether to append or replace.
+
+```
+/books note "Being You" 意识是大脑主动建构的预测，不是被动接收现实
+/books note anil "Read three times, something new each time"
+```
+
+---
+
+### `/books suggest`
+
+Recommends what to read next based on your library's patterns — categories you enjoy, countries you haven't explored, highly rated books you've already read, and unread books already on your shelf.
+
+```
+/books suggest
+```
+
+No external API needed. Claude analyses your `books.json` directly.
+
+**Example output:**
+```
+Based on your library (16 books · mostly Memoir & Self-Help · UK/Australia)
+
+From your unread shelf:
+  → "Big Feelings" — matches your psychology interest
+
+External picks:
+  → "Crying in H Mart" by Michelle Zauner — cross-cultural memoir, similar to "From Scratch"
+  → "The Body Keeps the Score" — Psychology, complements your self-help reads
+```
 
 ---
 
