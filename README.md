@@ -64,7 +64,7 @@ Snap a photo of any book → Claude reads the cover → instantly added to your 
 ## Install
 
 ```bash
-npx skills add https://github.com/YOUR_USERNAME/books-skill
+npx skills add https://github.com/sarahwangy/books-skill
 ```
 
 Or manually copy `SKILL.md` into your project's `.agents/skills/books/` directory.
