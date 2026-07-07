@@ -1,6 +1,6 @@
 ---
 name: books
-description: 个人书库管理工具——扫描书籍封面照片，AI 识别书名/作者/类别/作者简介等信息，追加到本地书库，支持编辑、搜索、状态管理、统计报表和 JSON 导出。触发词：/books scan、/books scan-folder、/books isbn、/books list、/books edit、/books search、/books status、/books stats、/books deploy、/books export。
+description: 个人书库管理工具——扫描书籍封面照片，AI 识别书名/作者/类别/作者简介等信息，追加到本地书库，支持编辑、搜索、状态管理、统计报表和 JSON 导出。触发词：/books scan、/books scan-folder、/books isbn、/books list、/books edit、/books search、/books status、/books stats、/books present、/books deploy、/books export。
 ---
 
 # books · 个人书库 Skill
@@ -757,6 +757,384 @@ print(f"Done: {OUTPUT} ({sz:,} bytes, {total} books, theme={THEME})")
   Print / PDF: click the "⎙ Print / PDF" button in the browser
 
 Open books-report.html in a browser.
+```
+
+---
+
+## 命令：/books present \[主题\]
+
+**作用**：根据 `books.json` 生成一份交互式 HTML 幻灯片演示，数据来自真实书库，支持四种视觉风格。输出文件 `books-present.html`。
+
+**第一步：确认主题**
+
+若用户未指定主题，展示以下选项（与 `/books stats` 一致）：
+
+```
+Choose a presentation theme:
+
+  1. Classic  — warm beige, steel blue     (default)
+  2. Dark     — deep navy, amber
+  3. Warm     — ivory, terracotta
+  4. Ocean    — soft teal, dark slate
+
+Which theme? (1–4, or press Enter for Classic)
+```
+
+**第二步：执行 Python 脚本**
+
+将以下完整脚本写入 `/tmp/books_present.py`，将 `THEME = "classic"` 替换为用户选择的主题，然后执行 `python3 /tmp/books_present.py`，完成后删除临时文件。
+
+```python
+import json, os
+from collections import Counter
+from datetime import date
+
+BOOKS_JSON = "books.json"
+OUTPUT     = "books-present.html"
+THEME      = "classic"   # claude fills: classic | dark | warm | ocean
+
+THEMES = {
+    "classic": {
+        "bg_dark":    "#1e2d3d", "bg_light":  "#f8f5ef",
+        "accent":     "#4A7B9D", "accent_s":  "#b8ccd8",
+        "text_dark":  "#ede8dd", "text_light": "#1e2d3d",
+        "muted_dark": "rgba(184,204,216,0.55)", "muted_light": "rgba(30,45,61,0.45)",
+        "rule_dark":  "rgba(74,123,157,0.32)",  "rule_light":  "rgba(74,123,157,0.18)",
+        "dot_on":     "#4A7B9D", "dot_off":   "rgba(74,123,157,0.3)",
+    },
+    "dark": {
+        "bg_dark":    "#0f172a", "bg_light":  "#1e293b",
+        "accent":     "#e2b96f", "accent_s":  "#cbd5e1",
+        "text_dark":  "#f1f5f9", "text_light": "#f1f5f9",
+        "muted_dark": "rgba(203,213,225,0.5)", "muted_light": "rgba(203,213,225,0.5)",
+        "rule_dark":  "rgba(226,185,111,0.25)", "rule_light": "rgba(226,185,111,0.2)",
+        "dot_on":     "#e2b96f", "dot_off":   "rgba(226,185,111,0.3)",
+    },
+    "warm": {
+        "bg_dark":    "#2c1810", "bg_light":  "#fdf6ee",
+        "accent":     "#c4522a", "accent_s":  "#c8a882",
+        "text_dark":  "#f5e8d8", "text_light": "#2c1810",
+        "muted_dark": "rgba(200,168,130,0.55)", "muted_light": "rgba(44,24,16,0.45)",
+        "rule_dark":  "rgba(196,82,42,0.3)",  "rule_light":  "rgba(196,82,42,0.18)",
+        "dot_on":     "#c4522a", "dot_off":   "rgba(196,82,42,0.3)",
+    },
+    "ocean": {
+        "bg_dark":    "#0d2b2b", "bg_light":  "#f0f7f7",
+        "accent":     "#2a7f7f", "accent_s":  "#a0c8c8",
+        "text_dark":  "#e8f4f4", "text_light": "#0d2b2b",
+        "muted_dark": "rgba(160,200,200,0.55)", "muted_light": "rgba(13,43,43,0.45)",
+        "rule_dark":  "rgba(42,127,127,0.3)",  "rule_light":  "rgba(42,127,127,0.18)",
+        "dot_on":     "#2a7f7f", "dot_off":   "rgba(42,127,127,0.3)",
+    },
+}
+
+with open(BOOKS_JSON, encoding="utf-8") as f:
+    books = json.load(f)
+
+t = THEMES[THEME]
+today = date.today()
+this_year = str(today.year)
+
+total       = len(books)
+reading_bks = [b for b in books if b.get("status") == "reading"]
+read_bks    = [b for b in books if b.get("status") == "read"]
+unread_bks  = [b for b in books if b.get("status") == "unread"]
+rated_bks   = [b for b in books if b.get("rating") is not None]
+top_rated   = sorted(rated_bks, key=lambda b: b.get("rating") or 0, reverse=True)
+
+cats      = Counter(b["category"] for b in books if b.get("category"))
+countries = Counter(b["country"]  for b in books if b.get("country"))
+female_pct = round(sum(1 for b in books if b.get("author_gender") in ("F","女")) / total * 100) if total else 0
+top_cat     = cats.most_common(1)[0][0] if cats else ""
+top_country = countries.most_common(1)[0][0] if countries else ""
+
+def esc(s):
+    return str(s).replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
+
+def eyebrow(label, dark):
+    rc = t["rule_dark"] if dark else t["rule_light"]
+    tc = t["accent_s"]  if dark else t["accent"]
+    return ('<div class="ey" style="color:' + tc + '">'
+            '<span class="rule" style="background:' + rc + '"></span>'
+            + esc(label) + '</div>')
+
+def bar(val, mx, color):
+    pct = round(val / mx * 100) if mx else 0
+    return ('<div class="bar-wrap"><div class="bar-fill" style="width:' + str(pct)
+            + '%;background:' + color + '"></div></div>')
+
+slides = []
+
+# 1 · Cover
+slides.append(
+    '<div class="slide active" style="background:' + t["bg_dark"] + ';align-items:center;text-align:center;">'
+    + '<div class="cover-big" style="color:' + t["accent_s"] + '">' + str(total) + '</div>'
+    + '<div class="cover-unit" style="color:' + t["muted_dark"] + '">books in my library</div>'
+    + '<div class="cover-rule" style="background:' + t["rule_dark"] + '"></div>'
+    + '<div class="cover-title" style="color:' + t["text_dark"] + '">My Library</div>'
+    + '<div class="cover-sub" style="color:' + t["muted_dark"] + '">'
+    + esc(top_cat) + '  ·  ' + esc(top_country) + '  ·  ' + this_year + '</div>'
+    + '</div>'
+)
+
+# 2 · By the Numbers
+def scard(num, label):
+    return ('<div class="stat-card" style="border-color:' + t["rule_light"] + '">'
+            + '<div class="stat-num" style="color:' + t["accent"] + '">' + esc(str(num)) + '</div>'
+            + '<div class="stat-label" style="color:' + t["muted_light"] + '">' + esc(label) + '</div>'
+            + '</div>')
+
+slides.append(
+    '<div class="slide" style="background:' + t["bg_light"] + '">'
+    + eyebrow("By the Numbers", False)
+    + '<p class="s-head" style="color:' + t["text_light"] + '">What the shelf looks like.</p>'
+    + '<div class="stat-grid">'
+    + scard(total, "Books")
+    + scard(len(countries), "Countries")
+    + scard(str(female_pct) + "%", "Female Authors")
+    + scard(len(cats), "Categories")
+    + '</div></div>'
+)
+
+# 3 · Reading Now (conditional)
+if reading_bks:
+    rows = ""
+    for b in reading_bks[:6]:
+        rows += ('<div class="list-row" style="border-color:' + t["rule_dark"] + '">'
+                 + '<div class="list-title" style="color:' + t["text_dark"] + '">' + esc(b.get("title","")) + '</div>'
+                 + '<div class="list-sub" style="color:' + t["muted_dark"] + '">' + esc(b.get("author","")) + '</div>'
+                 + '</div>')
+    slides.append(
+        '<div class="slide" style="background:' + t["bg_dark"] + '">'
+        + eyebrow("Reading Now", True)
+        + '<p class="s-head" style="color:' + t["text_dark"] + '">'
+        + str(len(reading_bks)) + ' book' + ('s' if len(reading_bks) != 1 else '') + ' in progress.</p>'
+        + '<div class="list-col">' + rows + '</div></div>'
+    )
+
+# 4 · Top Rated (conditional)
+if top_rated:
+    rows = ""
+    for b in top_rated[:6]:
+        r = b.get("rating") or 0
+        stars = "★" * r + "☆" * (5 - r)
+        rows += ('<div class="list-row" style="border-color:' + t["rule_light"] + '">'
+                 + '<div class="list-title" style="color:' + t["text_light"] + '">' + esc(b.get("title","")) + '</div>'
+                 + '<div style="display:flex;gap:0.7rem;margin-top:0.2rem;">'
+                 + '<span style="color:' + t["accent"] + ';font-size:0.85rem">' + stars + '</span>'
+                 + '<span class="list-sub" style="color:' + t["muted_light"] + '">' + esc(b.get("author","")) + '</span>'
+                 + '</div></div>')
+    slides.append(
+        '<div class="slide" style="background:' + t["bg_light"] + '">'
+        + eyebrow("Top Rated", False)
+        + '<p class="s-head" style="color:' + t["text_light"] + '">Highest-rated reads.</p>'
+        + '<div class="list-col">' + rows + '</div></div>'
+    )
+
+# 5 · By Category
+top_cats = cats.most_common(8)
+mx = top_cats[0][1] if top_cats else 1
+rows = ""
+for cat, cnt in top_cats:
+    rows += ('<div class="bar-row">'
+             + '<div class="bar-label" style="color:' + t["muted_dark"] + '">' + esc(cat) + '</div>'
+             + bar(cnt, mx, t["accent"])
+             + '<div class="bar-count" style="color:' + t["accent_s"] + '">' + str(cnt) + '</div>'
+             + '</div>')
+slides.append(
+    '<div class="slide" style="background:' + t["bg_dark"] + '">'
+    + eyebrow("By Category", True)
+    + '<p class="s-head" style="color:' + t["text_dark"] + '">What you reach for most.</p>'
+    + '<div class="bar-list">' + rows + '</div></div>'
+)
+
+# 6 · Around the World
+top_cs = countries.most_common(8)
+mx = top_cs[0][1] if top_cs else 1
+rows = ""
+for country, cnt in top_cs:
+    rows += ('<div class="bar-row">'
+             + '<div class="bar-label" style="color:' + t["muted_light"] + '">' + esc(country) + '</div>'
+             + bar(cnt, mx, t["accent"])
+             + '<div class="bar-count" style="color:' + t["accent"] + '">' + str(cnt) + '</div>'
+             + '</div>')
+slides.append(
+    '<div class="slide" style="background:' + t["bg_light"] + '">'
+    + eyebrow("Around the World", False)
+    + '<p class="s-head" style="color:' + t["text_light"] + '">Your shelf spans '
+    + str(len(countries)) + (' country.' if len(countries) == 1 else ' countries.') + '</p>'
+    + '<div class="bar-list">' + rows + '</div></div>'
+)
+
+# 7 · The Shelf
+recent = sorted([b for b in books if b.get("added")], key=lambda b: b["added"], reverse=True)[:5]
+rows = ""
+for b in recent:
+    sc = t["accent_s"] if b.get("status") == "reading" else t["muted_dark"]
+    rows += ('<div class="list-row" style="border-color:' + t["rule_dark"] + '">'
+             + '<div class="list-title" style="color:' + t["text_dark"] + '">' + esc(b.get("title","")) + '</div>'
+             + '<div class="list-sub" style="color:' + sc + '">'
+             + esc(b.get("status","")) + '  ·  ' + esc(b.get("added","")) + '</div>'
+             + '</div>')
+slides.append(
+    '<div class="slide" style="background:' + t["bg_dark"] + '">'
+    + eyebrow("The Shelf", True)
+    + '<div style="display:flex;gap:4vw;align-items:baseline;margin-bottom:2rem;">'
+    + '<div><div class="stat-num" style="color:' + t["accent_s"] + ';font-size:clamp(3rem,8vw,7rem);line-height:1">'
+    + str(len(unread_bks)) + '</div><div class="stat-label" style="color:' + t["muted_dark"] + '">unread</div></div>'
+    + '<div><div class="stat-num" style="color:' + t["accent_s"] + ';font-size:clamp(3rem,8vw,7rem);line-height:1">'
+    + str(len(read_bks)) + '</div><div class="stat-label" style="color:' + t["muted_dark"] + '">finished</div></div>'
+    + '</div>'
+    + '<div class="list-label" style="color:' + t["muted_dark"] + '">Recently added</div>'
+    + '<div class="list-col">' + rows + '</div></div>'
+)
+
+n = len(slides)
+dot_on  = t["dot_on"]
+dot_off = t["dot_off"]
+
+css = (
+    "*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }"
+    "body { font-family:'Optima',Candara,'Gill Sans','Segoe UI',sans-serif; overflow:hidden; height:100vh; width:100vw; }"
+    ".deck { position:relative; width:100vw; height:100vh; }"
+    ".slide { position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center;"
+    "  padding:6vh 8vw; opacity:0; pointer-events:none; transition:opacity 0.45s ease; }"
+    ".slide.active { opacity:1; pointer-events:auto; }"
+    ".ey { display:flex; flex-direction:column; font-size:0.62rem; letter-spacing:0.22em;"
+    "  text-transform:uppercase; margin-bottom:2rem; }"
+    ".rule { display:block; width:2.4rem; height:1px; margin-bottom:0.55rem; }"
+    ".s-head { font-family:'Palatino Linotype',Palatino,'Book Antiqua',serif;"
+    "  font-size:clamp(1.4rem,3.5vw,2.6rem); font-weight:400; margin-bottom:2rem;"
+    "  text-wrap:balance; max-width:32ch; line-height:1.15; }"
+    ".cover-big { font-family:'Palatino Linotype',Palatino,'Book Antiqua',serif;"
+    "  font-size:clamp(6rem,18vw,16rem); font-weight:400; line-height:0.85; letter-spacing:-0.02em;"
+    "  animation:riseIn 0.9s cubic-bezier(0.16,1,0.3,1) both; }"
+    ".cover-unit { font-size:clamp(0.7rem,1.4vw,0.9rem); letter-spacing:0.18em; text-transform:uppercase;"
+    "  margin-top:0.5rem; animation:riseIn 0.9s 0.1s cubic-bezier(0.16,1,0.3,1) both; }"
+    ".cover-rule { width:3rem; height:1px; margin:2rem auto;"
+    "  animation:riseIn 0.9s 0.18s cubic-bezier(0.16,1,0.3,1) both; }"
+    ".cover-title { font-family:'Palatino Linotype',Palatino,'Book Antiqua',serif;"
+    "  font-size:clamp(1.4rem,3.5vw,2.8rem); font-weight:400;"
+    "  animation:riseIn 0.9s 0.24s cubic-bezier(0.16,1,0.3,1) both; }"
+    ".cover-sub { font-size:clamp(0.65rem,1.3vw,0.85rem); letter-spacing:0.14em; text-transform:uppercase;"
+    "  margin-top:0.75rem; animation:riseIn 0.9s 0.32s cubic-bezier(0.16,1,0.3,1) both; }"
+    "@keyframes riseIn { from{opacity:0;transform:translateY(1.5rem)} to{opacity:1;transform:translateY(0)} }"
+    ".stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1.5vw; max-width:860px; }"
+    ".stat-card { border:1px solid; border-radius:2px; padding:1.4rem 1.2rem; }"
+    ".stat-num { font-family:'Palatino Linotype',Palatino,'Book Antiqua',serif;"
+    "  font-size:clamp(2.2rem,5vw,4rem); font-weight:400; line-height:1; margin-bottom:0.5rem;"
+    "  font-variant-numeric:tabular-nums; }"
+    ".stat-label { font-size:clamp(0.6rem,1.1vw,0.75rem); letter-spacing:0.14em; text-transform:uppercase; }"
+    ".list-col { display:flex; flex-direction:column; max-width:640px; }"
+    ".list-row { border-top:1px solid; padding:0.65rem 0; }"
+    ".list-title { font-family:'Palatino Linotype',Palatino,'Book Antiqua',serif;"
+    "  font-size:clamp(0.85rem,1.8vw,1.2rem); font-weight:400; }"
+    ".list-sub { font-size:clamp(0.65rem,1.2vw,0.8rem); letter-spacing:0.05em; margin-top:0.15rem; }"
+    ".list-label { font-size:0.62rem; letter-spacing:0.18em; text-transform:uppercase; margin-bottom:0.75rem; }"
+    ".bar-list { display:flex; flex-direction:column; gap:0.65rem; max-width:680px; width:100%; }"
+    ".bar-row { display:grid; grid-template-columns:10rem 1fr 2.5rem; gap:1rem; align-items:center; }"
+    ".bar-label { font-size:clamp(0.68rem,1.2vw,0.82rem); text-align:right; line-height:1.3; }"
+    ".bar-wrap { height:6px; background:rgba(128,128,128,0.12); border-radius:1px; overflow:hidden; }"
+    ".bar-fill { height:100%; border-radius:1px; }"
+    ".bar-count { font-size:0.7rem; font-variant-numeric:tabular-nums; }"
+    ".counter { position:fixed; top:1.4rem; right:2rem; font-size:0.68rem; letter-spacing:0.14em;"
+    "  z-index:200; font-variant-numeric:tabular-nums; padding:0.28rem 0.6rem; border-radius:0.2rem;"
+    "  background:rgba(0,0,0,0.35); color:rgba(255,255,255,0.6); }"
+    ".dots { position:fixed; bottom:1.6rem; left:50%; transform:translateX(-50%);"
+    "  display:flex; gap:0.45rem; z-index:200;"
+    "  background:rgba(0,0,0,0.35); padding:0.45rem 0.8rem; border-radius:2rem; }"
+    ".dot { width:5px; height:5px; border-radius:50%; cursor:pointer;"
+    "  transition:background 0.3s,transform 0.25s; border:none; }"
+    ".dot.active { transform:scale(1.45); }"
+    ".btn-p,.btn-n { position:fixed; top:50%; transform:translateY(-50%);"
+    "  background:rgba(0,0,0,0.3); border:none; cursor:pointer; padding:0.9rem 0.6rem;"
+    "  color:rgba(255,255,255,0.4); z-index:200; transition:color 0.2s,background 0.2s; border-radius:2px; }"
+    ".btn-p:hover,.btn-n:hover { color:rgba(255,255,255,0.85); background:rgba(0,0,0,0.55); }"
+    ".btn-p { left:0.6rem; } .btn-n { right:0.6rem; }"
+)
+
+js = (
+    "(function(){"
+    "var sl=document.querySelectorAll('.slide'),"
+    "ct=document.getElementById('ct'),"
+    "de=document.getElementById('de'),"
+    "total=sl.length,cur=0;"
+    "sl.forEach(function(_,i){"
+    "var b=document.createElement('button');b.className='dot'+(i===0?' active':'');"
+    "b.style.background=i===0?'" + dot_on + "':'" + dot_off + "';"
+    "b.setAttribute('aria-label','Slide '+(i+1));"
+    "b.addEventListener('click',function(){go(i);});de.appendChild(b);});"
+    "function go(n){"
+    "sl[cur].classList.remove('active');de.children[cur].style.background='" + dot_off + "';"
+    "de.children[cur].classList.remove('active');"
+    "cur=((n%total)+total)%total;"
+    "sl[cur].classList.add('active');de.children[cur].style.background='" + dot_on + "';"
+    "de.children[cur].classList.add('active');"
+    "ct.textContent=(cur+1)+' / '+total;}"
+    "document.getElementById('bp').addEventListener('click',function(){go(cur-1);});"
+    "document.getElementById('bn').addEventListener('click',function(){go(cur+1);});"
+    "document.addEventListener('keydown',function(e){"
+    "if(e.key==='ArrowRight'||e.key==='ArrowDown'||e.key===' '){e.preventDefault();go(cur+1);}"
+    "if(e.key==='ArrowLeft'||e.key==='ArrowUp'){e.preventDefault();go(cur-1);}});"
+    "var tx=null;"
+    "document.addEventListener('touchstart',function(e){tx=e.touches[0].clientX;},{passive:true});"
+    "document.addEventListener('touchend',function(e){"
+    "if(tx===null)return;var dx=e.changedTouches[0].clientX-tx;"
+    "if(Math.abs(dx)>40)go(dx<0?cur+1:cur-1);tx=null;});"
+    "}());"
+)
+
+svg_prev = "<svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round'><polyline points='15 18 9 12 15 6'/></svg>"
+svg_next = "<svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round'><polyline points='9 18 15 12 9 6'/></svg>"
+
+html = (
+    "<!DOCTYPE html><html lang='en'><head>"
+    "<meta charset='UTF-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
+    "<title>My Library — Presentation</title>"
+    "<style>" + css + "</style></head><body>"
+    "<span class='counter' id='ct'>1 / " + str(n) + "</span>"
+    "<div class='deck'>" + "".join(slides) + "</div>"
+    "<div class='dots' id='de'></div>"
+    "<button class='btn-p' id='bp' aria-label='Previous'>" + svg_prev + "</button>"
+    "<button class='btn-n' id='bn' aria-label='Next'>" + svg_next + "</button>"
+    "<script>" + js + "</script>"
+    "</body></html>"
+)
+
+with open(OUTPUT, "w", encoding="utf-8") as f:
+    f.write(html)
+
+print("Saved:", OUTPUT, "—", n, "slides")
+```
+
+**第三步：输出确认**
+
+```
+✓ Presentation saved to books-present.html
+  Theme:  Classic
+  Slides: 7  (Reading Now + Top Rated slides auto-added when data exists)
+
+Open books-present.html in your browser.
+← → arrow keys or click to navigate · touch swipe supported
+```
+
+**幻灯片结构**（根据书库数据动态生成）：
+
+| 幻灯片 | 内容 | 条件 |
+|--------|------|------|
+| 1 | 封面 — 书库总量、主类别、年份 | 必有 |
+| 2 | 统计数字 — 总数、国家数、女性作者%、类别数 | 必有 |
+| 3 | 正在读 — 当前阅读中的书单 | 有 `reading` 状态书时 |
+| 4 | 最高评分 — 4–5 星书目 | 有 `rating` 数据时 |
+| 5 | 按类别 — 横向条形图 | 必有 |
+| 6 | 环游世界 — 国家分布条形图 | 必有 |
+| 7 | 书架 — 未读/已读数量 + 最新入库 | 必有 |
+
+**示例**：
+```
+/books present
+/books present dark
+/books present warm
 ```
 
 ---

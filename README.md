@@ -26,6 +26,7 @@ Point it at a photo → Claude reads the cover → the book is in your library. 
 /books note "Being You" 意识是大脑主动建构的预测，读完彻底改变了我对感知的理解
 /books suggest
 /books stats
+/books present
 /books deploy
 /books export json
 ```
@@ -329,6 +330,36 @@ External picks:
   → "Crying in H Mart" by Michelle Zauner — cross-cultural memoir, similar to "From Scratch"
   → "The Body Keeps the Score" — Psychology, complements your self-help reads
 ```
+
+---
+
+### `/books present [theme]`
+
+Generates `books-present.html` — a data-driven slide deck built from your actual library. Every slide is populated with real numbers, real books, real categories.
+
+```
+/books present
+/books present dark
+/books present warm
+```
+
+Same four themes as `/books stats`. If no theme is given, the skill asks you to choose.
+
+The deck adapts to your data — slides for "Reading Now" and "Top Rated" only appear when you have books in those states.
+
+**Slides generated:**
+
+| Slide | Content | Condition |
+|-------|---------|-----------|
+| Cover | Total book count · top category · year | Always |
+| By the Numbers | Total, countries, female author %, categories | Always |
+| Reading Now | Books currently in progress | Only if any `reading` |
+| Top Rated | Highest-rated books with stars | Only if any `rating` |
+| By Category | Horizontal bar chart | Always |
+| Around the World | Country distribution | Always |
+| The Shelf | Unread/read counts + recent additions | Always |
+
+Navigate with ← → arrow keys, click, or swipe on mobile.
 
 ---
 

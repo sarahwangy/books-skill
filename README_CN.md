@@ -78,6 +78,7 @@ git clone https://github.com/sarahwangy/books-skill .agents/skills/books
 | `/books edit <书名> <字段> <新值>` | 修正任意字段，无需重新扫描 |
 | `/books search <关键词>` | 搜索书名、作者、国家、类别、描述 |
 | `/books stats [主题]` | 生成交互式 HTML 统计报表 |
+| `/books present [主题]` | 生成数据驱动的 HTML 幻灯片演示，内容来自真实书库 |
 | `/books deploy` | 部署报表到 Vercel，生成永久 URL |
 | `/books rate <书名> <1-5>` | 给书打星（1–5 分）|
 | `/books note <书名> <笔记>` | 添加私人备注，可追加或覆盖 |
