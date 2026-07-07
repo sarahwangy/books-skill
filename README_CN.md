@@ -102,7 +102,7 @@ git clone https://github.com/sarahwangy/books-skill .agents/skills/books
 
 ## 数据格式
 
-`books.json` 单条记录：
+`my_lovely_library/books.json` 单条记录：
 
 ```json
 {
@@ -129,11 +129,11 @@ git clone https://github.com/sarahwangy/books-skill .agents/skills/books
 
 | 文件 | 说明 |
 |------|------|
-| `books.json` | 主数据文件，所有操作的数据源 |
-| `books.md` | Markdown 表格，可粘贴到任意笔记 app |
-| `books-report.html` | 自包含交互式报表 |
-| `books-export.json` | 干净导出，供 Notion / Obsidian 导入 |
-| `rename-guide.txt` | 批量扫描后的图片重命名建议 |
+| `my_lovely_library/books.json` | 主数据文件，所有操作的数据源 |
+| `my_lovely_library/books.md` | Markdown 表格，可粘贴到任意笔记 app |
+| `my_lovely_library/books-report.html` | 自包含交互式报表 |
+| `my_lovely_library/books-export.json` | 干净导出，供 Notion / Obsidian 导入 |
+| `my_lovely_library/rename-guide.txt` | 批量扫描后的图片重命名建议 |
 
 ---
 
@@ -141,7 +141,7 @@ git clone https://github.com/sarahwangy/books-skill .agents/skills/books
 
 - `/books reading-log` — 按月显示阅读节奏，时间轴可视化
 - 封面扫描 + ISBN 交叉核对 — 扫描后用 ISBN 校验，提升 title/year 准确率
-- 多设备同步 — 目前 books.json 存本地；`/books deploy` 解决只读访问，未来版本考虑双向同步
+- 多设备同步 — 目前 my_lovely_library/books.json 存本地；`/books deploy` 解决只读访问，未来版本考虑双向同步
 
 ---
 
@@ -151,7 +151,7 @@ git clone https://github.com/sarahwangy/books-skill .agents/skills/books
 |------|------|
 | [Claude Code](https://claude.ai/code) | 运行 skill |
 | macOS | HEIC 转换（`sips` 内置）；JPG/PNG 在任意系统可用 |
-| Python 3 | 生成 `books-report.html`（macOS 预装）|
+| Python 3 | 生成 `my_lovely_library/books-report.html`（macOS 预装）|
 | Node.js | 仅 `/books deploy` 需要 |
 | Vercel 账号（免费）| 仅 `/books deploy` 需要 |
 

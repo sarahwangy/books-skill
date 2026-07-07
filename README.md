@@ -43,7 +43,7 @@ Point it at a photo → Claude reads the cover → the book is in your library. 
 - **Print / PDF** — One button in the browser. Print CSS hides charts and controls, leaving a clean book list — correctly paginated, covers included if present.
 - **Vercel deploy** — One command publishes the dashboard to a permanent URL. Same URL every time; bookmark it on your phone.
 - **Cover thumbnails** — Embedded as base64 in the HTML. No broken links, no external paths, works offline.
-- **JSON-safe writing** — Every write automatically strips Chinese curly quotes from text fields before touching `books.json`.
+- **JSON-safe writing** — Every write automatically strips Chinese curly quotes from text fields before touching `my_lovely_library/books.json`.
 - **English-first, Chinese-respectful** — Non-Chinese books use English for all metadata fields. Chinese books stay fully Chinese.
 - **Works beyond books** — The same skill handles wine labels, business cards, plant tags, and board game boxes. Books are the default; anything with a cover works.
 
@@ -125,8 +125,8 @@ Batch-scans every image in a folder.
 - Processes JPG, PNG, HEIC, WEBP
 - Skips non-book images (internal pages, brochures, receipts) — flags them in the summary
 - Skips titles already in the library
-- Writes `books.json` and `books.md` once at the end, not after every photo
-- Generates `rename-guide.txt` with suggested filenames in `Category_Title_Author` format
+- Writes `my_lovely_library/books.json` and `my_lovely_library/books.md` once at the end, not after every photo
+- Generates `my_lovely_library/rename-guide.txt` with suggested filenames in `Category_Title_Author` format
 
 **Output:**
 ```
@@ -140,7 +140,7 @@ New additions:
   · Top End Girl — Miranda Tapsell (Memoir)
   · 南极之南 — 毕淑敏（游记散文）
 
-Rename guide saved to rename-guide.txt
+Rename guide saved to my_lovely_library/rename-guide.txt
 ```
 
 ---
@@ -221,7 +221,7 @@ Returns a Markdown table sorted by relevance. If nothing matches: `No books foun
 
 ### `/books stats [theme]`
 
-Generates `books-report.html` — a fully self-contained interactive dashboard.
+Generates `my_lovely_library/books-report.html` — a fully self-contained interactive dashboard.
 
 ```
 /books stats
@@ -294,7 +294,7 @@ Rate a book 1–5 stars. Fuzzy title matching — no need for exact title.
 /books rate anil 4
 ```
 
-Rating is stored in `books.json` and shown in the stats dashboard.
+Rating is stored in `my_lovely_library/books.json` and shown in the stats dashboard.
 
 ---
 
@@ -317,7 +317,7 @@ Recommends what to read next based on your library's patterns — categories you
 /books suggest
 ```
 
-No external API needed. Claude analyses your `books.json` directly.
+No external API needed. Claude analyses your `my_lovely_library/books.json` directly.
 
 **Example output:**
 ```
@@ -335,7 +335,7 @@ External picks:
 
 ### `/books present [theme]`
 
-Generates `books-present.html` — a data-driven slide deck built from your actual library. Every slide is populated with real numbers, real books, real categories.
+Generates `my_lovely_library/books-present.html` — a data-driven slide deck built from your actual library. Every slide is populated with real numbers, real books, real categories.
 
 ```
 /books present
@@ -365,7 +365,7 @@ Navigate with ← → arrow keys, click, or swipe on mobile.
 
 ### `/books deploy`
 
-Publishes `books-report.html` to a permanent Vercel URL.
+Publishes `my_lovely_library/books-report.html` to a permanent Vercel URL.
 
 ```
 /books deploy
@@ -394,7 +394,7 @@ Exports a clean, formatted JSON file for Notion, Obsidian, or any other tool.
 /books export json
 ```
 
-Writes `books-export.json` with `indent=2` formatting. Same schema as `books.json`.
+Writes `my_lovely_library/books-export.json` with `indent=2` formatting. Same schema as `my_lovely_library/books.json`.
 
 ---
 
@@ -418,17 +418,17 @@ Soft teal background, dark slate accent, clean white cards. Calm and airy. Chart
 
 | File | Description |
 |------|-------------|
-| `books.json` | Primary data store — source of truth |
-| `books.md` | Markdown table — paste into any note app |
-| `books-report.html` | Self-contained interactive dashboard |
-| `books-export.json` | Clean export for Notion / Obsidian / other tools |
-| `rename-guide.txt` | Photo rename suggestions after batch scan |
+| `my_lovely_library/books.json` | Primary data store — source of truth |
+| `my_lovely_library/books.md` | Markdown table — paste into any note app |
+| `my_lovely_library/books-report.html` | Self-contained interactive dashboard |
+| `my_lovely_library/books-export.json` | Clean export for Notion / Obsidian / other tools |
+| `my_lovely_library/rename-guide.txt` | Photo rename suggestions after batch scan |
 
 ---
 
 ## Data Format
 
-Each record in `books.json`:
+Each record in `my_lovely_library/books.json`:
 
 ```json
 {
@@ -468,7 +468,7 @@ The entire skill lives in a single `SKILL.md` file. No helper scripts, no depend
 | Base64 encoding | Python `base64` module — no line-break issues from shell `base64` |
 | Deployment | Vercel CLI (`npx vercel`) — installed on first use |
 | Charts | HTML5 Canvas API — no chart library dependency |
-| Data | `books.json` flat file — no database, no schema migration |
+| Data | `my_lovely_library/books.json` flat file — no database, no schema migration |
 
 ---
 
@@ -478,7 +478,7 @@ Features under consideration, roughly in priority order:
 
 - **`/books reading-log`** — Monthly reading pace, visible as a timeline.
 - **`/books isbn` + cover verify** — After a cover scan, optionally cross-check the detected ISBN against Open Library to confirm title/year accuracy.
-- **Multi-device sync** — Right now `books.json` lives locally. Running `/books deploy` gets you read-only access anywhere; a future version could sync edits back.
+- **Multi-device sync** — Right now `my_lovely_library/books.json` lives locally. Running `/books deploy` gets you read-only access anywhere; a future version could sync edits back.
 
 ---
 
@@ -508,7 +508,7 @@ Features under consideration, roughly in priority order:
 |-------------|----------|
 | [Claude Code](https://claude.ai/code) | Running the skill |
 | macOS | HEIC conversion via `sips` (JPG/PNG work on any OS) |
-| Python 3 | Generating `books-report.html` (pre-installed on macOS) |
+| Python 3 | Generating `my_lovely_library/books-report.html` (pre-installed on macOS) |
 | Node.js | `/books deploy` only — not needed for scanning or stats |
 | Vercel account (free) | `/books deploy` only |
 
