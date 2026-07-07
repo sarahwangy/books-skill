@@ -1,6 +1,6 @@
 ---
 name: books
-description: 个人书库管理工具——扫描书籍封面照片，AI 识别书名/作者/类别/作者简介等信息，追加到本地书库，支持编辑、搜索、状态管理、统计报表和 JSON 导出。触发词：/books scan、/books scan-folder、/books list、/books edit、/books search、/books status、/books stats、/books export。
+description: 个人书库管理工具——扫描书籍封面照片，AI 识别书名/作者/类别/作者简介等信息，追加到本地书库，支持编辑、搜索、状态管理、统计报表和 JSON 导出。触发词：/books scan、/books scan-folder、/books list、/books edit、/books search、/books status、/books stats、/books deploy、/books export。
 ---
 
 # books · 个人书库 Skill
@@ -63,18 +63,17 @@ sips -s format jpeg "<input.heic>" --out /tmp/books-scan-tmp.jpg
 3. 读取 `books.json`（不存在则创建 `[]`）
 4. 检查重复书名 → 若已有，告知跳过
 5. 生成新记录，`status` 默认 `"unread"`，`added` 为今日日期
-6. **写入前校验**：description 和 author_bio 不含中文引号（`"` `"`），若有则替换为直引号
+6. **写入前校验**：description 和 author_bio 不含中文引号，若有则替换为直引号
 7. 追加到 `books.json`，同步更新 `books.md`
 8. 输出确认：
 
 ```
 ✓ Added
-  Title:   Being You
-  Author:  Anil Seth (M · UK)
-  Bio:     British neuroscientist at University of Sussex researching consciousness.
+  Title:    Being You
+  Author:   Anil Seth (M · UK)
+  Bio:      British neuroscientist at University of Sussex researching consciousness.
   Category: Popular Science · 2021
-  Description: Neuroscientist explores the brain science behind consciousness.
-  Status:  unread
+  Status:   unread
 
 Library now has N books.
 ```
@@ -131,13 +130,12 @@ Rename guide saved to rename-guide.txt
 3. 输出紧凑表格（Markdown 格式）：
 
 ```
-Library · 16 books (3 reading · 8 unread · 5 read)
+Library · 16 books (1 reading · 15 unread)
 
  # | Title                                    | Author              | Category        | Status
 ---|------------------------------------------|---------------------|-----------------|--------
- 1 | Being You                                | Anil Seth           | Popular Science | unread
+ 1 | Being You                                | Anil Seth           | Popular Science | reading
  2 | Top End Girl                             | Miranda Tapsell     | Memoir          | unread
- 3 | 南极之南                                  | 毕淑敏              | 游记散文         | unread
 ```
 
 4. 末行显示：`Tip: /books stats to open interactive dashboard`
@@ -161,12 +159,6 @@ Library · 16 books (3 reading · 8 unread · 5 read)
   "Top End Girl" → reading
 ```
 
-**示例**：
-```
-/books status "Top End Girl" read
-/books status anil reading
-```
-
 ---
 
 ## 命令：/books edit \<书名关键词\> \<字段\> \<新值\>
@@ -178,7 +170,7 @@ Library · 16 books (3 reading · 8 unread · 5 read)
 **执行步骤**：
 1. 模糊匹配书名；多结果时列出让用户选编号
 2. 显示当前字段值
-3. **写入前校验**：若编辑 description 或 author_bio，检查新值不含中文引号，有则自动替换为直引号
+3. **写入前校验**：若编辑 description 或 author_bio，检查新值不含中文引号，有则自动替换
 4. 更新 `books.json` 和 `books.md`
 5. 输出确认：
 
@@ -187,15 +179,6 @@ Library · 16 books (3 reading · 8 unread · 5 read)
   "Top End Girl"
   year: null → 2021
 ```
-
-**示例**：
-```
-/books edit "Top End Girl" year 2021
-/books edit "Big Feelings" category Psychology
-/books edit anil author_bio British neuroscientist at University of Sussex
-```
-
-**注意**：year 字段传整数；不知道传 `null`；编辑不触发重新识别。
 
 ---
 
@@ -206,33 +189,34 @@ Library · 16 books (3 reading · 8 unread · 5 read)
 **执行步骤**：
 1. 读取 `books.json`
 2. 在 title、author、category、description、country 字段做关键词匹配（不区分大小写）
-3. 输出 Markdown 表格：
-
-```
-Search "UK" · 6 results
-
-| Title                     | Author          | Country | Category        | Status |
-|---------------------------|-----------------|---------|-----------------|--------|
-| Being You                 | Anil Seth       | UK      | Popular Science | unread |
-| Maybe I Don't Belong Here | David Harewood  | UK      | Memoir          | unread |
-```
-
-4. 无结果时提示：`No books found matching "<keyword>"`
-
-**示例**：
-```
-/books search UK
-/books search memoir
-/books search Annie Duke
-```
+3. 输出 Markdown 表格；无结果提示 `No books found matching "<keyword>"`
 
 ---
 
-## 命令：/books stats
+## 命令：/books stats \[主题\]
 
-**作用**：生成交互式统计报表，输出自包含的 `books-report.html`。
+**作用**：生成交互式统计报表，输出自包含的 `books-report.html`，支持四种视觉风格。
 
-**执行方式**：将以下完整 Python 脚本写入 `/tmp/books_stats.py`，然后用 Bash 执行 `python3 /tmp/books_stats.py`，执行完删除临时文件。
+**第一步：确认主题**
+
+若用户未在命令中指定主题，展示以下选项：
+
+```
+Choose a dashboard theme:
+
+  1. Classic  — warm beige, steel blue     (default)
+  2. Dark     — deep navy, amber
+  3. Warm     — ivory, terracotta
+  4. Ocean    — soft teal, dark slate
+
+Which theme? (1–4, or press Enter for Classic)
+```
+
+记录用户选择，在 Python 脚本中填入对应的 THEME 值（`classic` / `dark` / `warm` / `ocean`）。
+
+**第二步：执行 Python 脚本**
+
+将以下完整脚本写入 `/tmp/books_stats.py`，将 `THEME = "classic"` 替换为用户选择的主题，然后用 Bash 执行 `python3 /tmp/books_stats.py`，完成后删除临时文件。
 
 ```python
 import json, base64, os, subprocess, tempfile
@@ -240,7 +224,49 @@ from collections import Counter
 from datetime import date
 
 BOOKS_JSON = "books.json"
-OUTPUT = "books-report.html"
+OUTPUT     = "books-report.html"
+THEME      = "classic"   # claude fills: classic | dark | warm | ocean
+
+THEMES = {
+    "classic": {
+        "bg":"#f5f3ef","card":"#ffffff","border":"#e8e4de",
+        "accent":"#4A7B9D","accent2":"#C4955A","text":"#2c2c2c",
+        "muted":"#999999","hdr_bg":"#2c2c2c","hdr_fg":"#f5f3ef",
+        "row_hover":"#faf8f5","tag_cat_bg":"#e8f0e8","tag_cat_fg":"#4a7a4a",
+        "tag_f_bg":"#fce8ec","tag_f_fg":"#9a3a4a",
+        "tag_m_bg":"#e8eef8","tag_m_fg":"#3a4a8a",
+        "chart_colors":["#4A7B9D","#C4955A","#7A8C6E","#8B4513","#8B7AAF","#6B8F71","#B8775A","#5A6B8B"],
+    },
+    "dark": {
+        "bg":"#0f172a","card":"#1e293b","border":"#334155",
+        "accent":"#e2b96f","accent2":"#7dd3fc","text":"#e2e8f0",
+        "muted":"#64748b","hdr_bg":"#020617","hdr_fg":"#e2e8f0",
+        "row_hover":"#263348","tag_cat_bg":"#1e3a2f","tag_cat_fg":"#6ee7b7",
+        "tag_f_bg":"#3b1a2a","tag_f_fg":"#f9a8d4",
+        "tag_m_bg":"#1a2a3b","tag_m_fg":"#93c5fd",
+        "chart_colors":["#e2b96f","#7dd3fc","#6ee7b7","#f9a8d4","#c4b5fd","#fca5a5","#fdba74","#a3e635"],
+    },
+    "warm": {
+        "bg":"#fdf6ee","card":"#fffaf4","border":"#e8d8c4",
+        "accent":"#c4522a","accent2":"#8a6a3a","text":"#3a2010",
+        "muted":"#a08060","hdr_bg":"#3a2010","hdr_fg":"#fdf6ee",
+        "row_hover":"#fef9f2","tag_cat_bg":"#f0e8d8","tag_cat_fg":"#7a5a2a",
+        "tag_f_bg":"#fce8e0","tag_f_fg":"#c4522a",
+        "tag_m_bg":"#e8e0d8","tag_m_fg":"#6a5040",
+        "chart_colors":["#c4522a","#8a6a3a","#b87a3a","#7a4a2a","#d4824a","#6a5030","#e0a060","#5a4028"],
+    },
+    "ocean": {
+        "bg":"#f0f7f7","card":"#ffffff","border":"#b8d8d8",
+        "accent":"#2a7f7f","accent2":"#4a9a8a","text":"#1a3a3a",
+        "muted":"#6a9a9a","hdr_bg":"#1a3a3a","hdr_fg":"#e8f5f5",
+        "row_hover":"#e8f5f5","tag_cat_bg":"#d8eeee","tag_cat_fg":"#2a6a6a",
+        "tag_f_bg":"#f0e8f0","tag_f_fg":"#7a4a7a",
+        "tag_m_bg":"#d8eaf0","tag_m_fg":"#2a5a7a",
+        "chart_colors":["#2a7f7f","#4a9a8a","#6abaaa","#3a6a8a","#5a8aaa","#8acaca","#2a5a6a","#7aaaaa"],
+    },
+}
+
+t = THEMES.get(THEME, THEMES["classic"])
 
 with open(BOOKS_JSON) as f:
     books = json.load(f)
@@ -257,17 +283,17 @@ def encode_photo(photo):
     finally:
         if os.path.exists(tmp): os.remove(tmp)
 
-total      = len(books)
-female     = sum(1 for b in books if b.get("author_gender") in ("女","F"))
-pct_f      = round(female/total*100) if total else 0
-n_countries= len({b.get("country") for b in books if b.get("country")})
-n_cats     = len({b.get("category") for b in books if b.get("category")})
-updated    = date.today().isoformat()
+total       = len(books)
+female      = sum(1 for b in books if b.get("author_gender") in ("女","F"))
+pct_f       = round(female/total*100) if total else 0
+n_countries = len({b.get("country") for b in books if b.get("country")})
+n_cats      = len({b.get("category") for b in books if b.get("category")})
+updated     = date.today().isoformat()
 
-COLORS = ["#4A7B9D","#C4955A","#7A8C6E","#8B4513","#8B7AAF","#6B8F71","#B8775A","#5A6B8B"]
 country_cnt = Counter(b.get("country","") for b in books if b.get("country"))
 cat_cnt     = Counter(b.get("category","") for b in books if b.get("category"))
 gender_cnt  = Counter(b.get("author_gender","") for b in books if b.get("author_gender"))
+COLORS      = t["chart_colors"]
 
 def js_arr(counter):
     return json.dumps([{"label":k,"val":v,"col":COLORS[i%len(COLORS)]}
@@ -302,46 +328,59 @@ for b in books:
         '</tr>\n'
     )
 
-CSS = """
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f5f3ef;color:#2c2c2c;font-size:14px}
-header{background:#2c2c2c;color:#f5f3ef;padding:20px 32px}
-header .sub{font-size:11px;opacity:.5;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px}
-header h1{font-size:22px;font-weight:600}
-.toolbar{padding:14px 32px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fff;border-bottom:1px solid #e8e4de}
-#search{padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;width:240px;outline:none}
-#search:focus{border-color:#4A7B9D}
-.chips{display:flex;gap:6px;flex-wrap:wrap}
-.chip{background:#4A7B9D;color:#fff;padding:3px 10px;border-radius:20px;font-size:12px;cursor:pointer}
-.chip:hover{opacity:.85}
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:#e8e4de;margin:24px 32px 0}
-.stat{background:#fff;padding:16px 20px;text-align:center}
-.stat .n{font-size:30px;font-weight:700;color:#4A7B9D}
-.stat .l{font-size:11px;color:#999;margin-top:2px;text-transform:uppercase;letter-spacing:.5px}
-.charts{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;padding:20px 32px}
-.chart-box{background:#fff;border-radius:8px;padding:16px;border:1px solid #e8e4de}
-.chart-box h3{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:#999;margin-bottom:10px}
-canvas{cursor:pointer;display:block;max-width:100%}
-.count{padding:6px 32px 10px;font-size:12px;color:#aaa}
-.table-wrap{padding:0 32px 40px;overflow-x:auto}
-table{width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden;border:1px solid #e8e4de}
-th{background:#f5f3ef;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#999;padding:10px 12px;text-align:left;cursor:pointer;user-select:none;white-space:nowrap}
-th:hover{background:#ede9e2}
-td{padding:8px 12px;border-top:1px solid #f0ece6;vertical-align:middle}
-.tc{width:52px;padding:6px 8px}
-.tc img,.no-img{width:44px;height:60px;object-fit:cover;border-radius:3px;display:block;background:#e8e4de}
-.tt{font-weight:500;max-width:220px}
-.ta{max-width:180px;color:#555;font-size:13px}
-.bio{color:#bbb;font-size:11px}
-.ty{text-align:center;color:#aaa;white-space:nowrap}
-.tag{font-size:11px;padding:2px 8px;border-radius:10px;display:inline-block;cursor:pointer;white-space:nowrap}
-.tcat{background:#e8f0e8;color:#4a7a4a}
-.tf{background:#fce8ec;color:#9a3a4a}
-.tm{background:#e8eef8;color:#3a4a8a}
-.tst{background:#f0ece6;color:#888;cursor:default}
-tr.hidden{display:none}
-tr:hover td{background:#faf8f5}
-footer{text-align:center;padding:20px;color:#ccc;font-size:11px}
+CSS = f"""
+*{{box-sizing:border-box;margin:0;padding:0}}
+body{{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:{t['bg']};color:{t['text']};font-size:14px}}
+header{{background:{t['hdr_bg']};color:{t['hdr_fg']};padding:20px 32px}}
+header .sub{{font-size:11px;opacity:.5;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px}}
+header h1{{font-size:22px;font-weight:600}}
+.toolbar{{padding:14px 32px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:{t['card']};border-bottom:1px solid {t['border']}}}
+#search{{padding:8px 12px;border:1px solid {t['border']};border-radius:6px;font-size:13px;width:240px;outline:none;background:{t['card']};color:{t['text']}}}
+#search:focus{{border-color:{t['accent']}}}
+.btn-print{{padding:7px 14px;background:{t['accent']};color:{t['hdr_fg']};border:none;border-radius:6px;font-size:12px;cursor:pointer;margin-left:auto}}
+.btn-print:hover{{opacity:.85}}
+.chips{{display:flex;gap:6px;flex-wrap:wrap}}
+.chip{{background:{t['accent']};color:{t['hdr_fg']};padding:3px 10px;border-radius:20px;font-size:12px;cursor:pointer}}
+.chip:hover{{opacity:.85}}
+.stats{{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:{t['border']};margin:24px 32px 0}}
+.stat{{background:{t['card']};padding:16px 20px;text-align:center}}
+.stat .n{{font-size:30px;font-weight:700;color:{t['accent']}}}
+.stat .l{{font-size:11px;color:{t['muted']};margin-top:2px;text-transform:uppercase;letter-spacing:.5px}}
+.charts{{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;padding:20px 32px}}
+.chart-box{{background:{t['card']};border-radius:8px;padding:16px;border:1px solid {t['border']}}}
+.chart-box h3{{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:{t['muted']};margin-bottom:10px}}
+canvas{{cursor:pointer;display:block;max-width:100%}}
+.count{{padding:6px 32px 10px;font-size:12px;color:{t['muted']}}}
+.table-wrap{{padding:0 32px 40px;overflow-x:auto}}
+table{{width:100%;border-collapse:collapse;background:{t['card']};border-radius:8px;overflow:hidden;border:1px solid {t['border']}}}
+th{{background:{t['bg']};font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:{t['muted']};padding:10px 12px;text-align:left;cursor:pointer;user-select:none;white-space:nowrap}}
+th:hover{{opacity:.8}}
+td{{padding:8px 12px;border-top:1px solid {t['border']};vertical-align:middle}}
+.tc{{width:52px;padding:6px 8px}}
+.tc img,.no-img{{width:44px;height:60px;object-fit:cover;border-radius:3px;display:block;background:{t['border']}}}
+.tt{{font-weight:500;max-width:220px}}
+.ta{{max-width:180px;color:{t['muted']};font-size:13px}}
+.bio{{color:{t['muted']};font-size:11px;opacity:.7}}
+.ty{{text-align:center;color:{t['muted']};white-space:nowrap}}
+.tag{{font-size:11px;padding:2px 8px;border-radius:10px;display:inline-block;cursor:pointer;white-space:nowrap}}
+.tcat{{background:{t['tag_cat_bg']};color:{t['tag_cat_fg']}}}
+.tf{{background:{t['tag_f_bg']};color:{t['tag_f_fg']}}}
+.tm{{background:{t['tag_m_bg']};color:{t['tag_m_fg']}}}
+.tst{{background:{t['border']};color:{t['muted']};cursor:default}}
+tr.hidden{{display:none}}
+tr:hover td{{background:{t['row_hover']}}}
+footer{{text-align:center;padding:20px;color:{t['muted']};font-size:11px}}
+@media print{{
+  .toolbar,.charts,.count,footer{{display:none}}
+  .stats{{margin:0 0 16px}}
+  .table-wrap{{padding:0}}
+  header{{padding:12px 16px}}
+  table{{border:1px solid #ccc;font-size:12px}}
+  th,td{{padding:6px 8px}}
+  .tc img,.no-img{{width:32px;height:44px}}
+  tr.hidden{{display:none!important}}
+  body{{background:#fff;color:#000}}
+}}
 """
 
 JS = """
@@ -358,11 +397,12 @@ function drawBar(id,data,key){
   data.forEach((d,i)=>{
     const y=pt+i*(rh+3),bw=(W-pl-pr)*d.val/max;
     const dim=state[key]&&state[key]!==d.label;
-    ctx.globalAlpha=dim?0.25:1;
+    ctx.globalAlpha=dim?0.2:1;
     ctx.fillStyle=d.col; ctx.fillRect(pl,y,bw,rh);
-    ctx.fillStyle='#444'; ctx.font='11px -apple-system,sans-serif';
+    ctx.fillStyle=getComputedStyle(document.body).color;
+    ctx.font='11px -apple-system,sans-serif';
     ctx.textAlign='right'; ctx.fillText(d.label,pl-5,y+rh/2+4);
-    ctx.fillStyle='#888'; ctx.textAlign='left';
+    ctx.globalAlpha=dim?0.4:0.7; ctx.textAlign='left';
     ctx.fillText(d.val,pl+bw+4,y+rh/2+4);
     ctx.globalAlpha=1;
   });
@@ -380,18 +420,20 @@ function drawPie(id,data){
   data.forEach(d=>{
     const sl=2*Math.PI*d.val/total;
     const dim=state.g&&state.g!==d.label;
-    ctx.globalAlpha=dim?0.25:1;
+    ctx.globalAlpha=dim?0.2:1;
     ctx.beginPath(); ctx.moveTo(cx,cy);
     ctx.arc(cx,cy,r,ang,ang+sl); ctx.closePath();
     ctx.fillStyle=d.col; ctx.fill();
-    ctx.strokeStyle='#f5f3ef'; ctx.lineWidth=2; ctx.stroke();
+    ctx.strokeStyle=document.body.style.background||'#f5f3ef';
+    ctx.lineWidth=2; ctx.stroke();
     ang+=sl; ctx.globalAlpha=1;
   });
   const lx=W*0.68;
   data.forEach((d,i)=>{
     const ly=H/2-data.length*14+i*28;
     ctx.fillStyle=d.col; ctx.fillRect(lx,ly,11,11);
-    ctx.fillStyle='#444'; ctx.font='11px -apple-system,sans-serif';
+    ctx.fillStyle=getComputedStyle(document.body).color;
+    ctx.font='11px -apple-system,sans-serif';
     ctx.fillText(d.label+' ('+d.val+')',lx+15,ly+10);
   });
   c._d=data; c._k='g';
@@ -470,6 +512,7 @@ function renderChips(){
 document.getElementById('search').addEventListener('input',e=>{
   state.q=e.target.value.trim(); apply();
 });
+document.getElementById('btn-print').addEventListener('click',()=>window.print());
 
 let sc=-1,sd=1;
 document.querySelectorAll('th[data-col]').forEach(th=>{
@@ -496,13 +539,12 @@ html = (
     "<meta name='viewport' content='width=device-width,initial-scale=1'>"
     f"<title>My Library · {total} books</title>"
     "<style>" + CSS + "</style></head><body>"
-    "<header>"
-    "<div class='sub'>Personal Library</div>"
-    f"<h1>My Books &nbsp;·&nbsp; {total} titles</h1>"
-    "</header>"
+    f"<header><div class='sub'>Personal Library · {THEME.title()} theme</div>"
+    f"<h1>My Books &nbsp;·&nbsp; {total} titles</h1></header>"
     "<div class='toolbar'>"
     "<input id='search' type='search' placeholder='Search title, author, country…'>"
     "<div class='chips' id='chips'></div>"
+    "<button class='btn-print' id='btn-print'>⎙ Print / PDF</button>"
     "</div>"
     "<div class='stats'>"
     f"<div class='stat'><div class='n'>{total}</div><div class='l'>Total Books</div></div>"
@@ -525,7 +567,7 @@ html = (
     "<th>Category</th><th>Gender</th><th>Status</th>"
     "</tr></thead>"
     f"<tbody id='tbody'>\n{rows_html}</tbody></table></div>"
-    f"<footer>Generated {updated}</footer>"
+    f"<footer>Generated {updated} · {THEME.title()} theme</footer>"
     "<script>"
     f"const COUNTRY={country_js};\n"
     f"const GENDER={gender_js};\n"
@@ -538,19 +580,66 @@ with open(OUTPUT,"w") as f:
     f.write(html)
 
 sz = os.path.getsize(OUTPUT)
-print(f"Done: {OUTPUT} ({sz:,} bytes, {total} books)")
+print(f"Done: {OUTPUT} ({sz:,} bytes, {total} books, theme={THEME})")
 ```
 
 **完成后告知**：
 
 ```
 ✓ Dashboard generated: books-report.html
-  N books · N read · N reading · N unread
-  N countries · N% female authors · N categories
+  N books · theme: Classic
+  Print / PDF: click the "⎙ Print / PDF" button in the browser
 
 Open books-report.html in a browser.
-Charts are clickable · Search filters in real-time · Click column headers to sort
 ```
+
+---
+
+## 命令：/books deploy
+
+**作用**：将 `books-report.html` 部署到 Vercel，生成可在任何设备访问的公开 URL。
+
+**前置条件**：
+- Node.js 已安装（`node -v` 验证）
+- 首次运行会自动安装 Vercel CLI 并引导登录
+
+**执行步骤**：
+
+1. 检查 `books-report.html` 是否存在，不存在则提示先运行 `/books stats`
+2. 检查并安装 Vercel CLI：
+```bash
+npx vercel --version 2>/dev/null || npm install -g vercel
+```
+3. 检查登录状态，未登录则引导：
+```bash
+vercel whoami 2>/dev/null || vercel login
+```
+4. 创建临时部署目录，将 `books-report.html` 复制为 `index.html`：
+```bash
+mkdir -p /tmp/books-deploy
+cp books-report.html /tmp/books-deploy/index.html
+```
+5. 部署（固定项目名，每次覆盖同一 URL）：
+```bash
+cd /tmp/books-deploy && vercel deploy --yes --prod --name my-books-library
+```
+6. 清理临时目录：
+```bash
+rm -rf /tmp/books-deploy
+```
+7. 输出确认：
+
+```
+✓ Deployed: https://my-books-library.vercel.app
+
+Open this URL on any device — phone, iPad, or another computer.
+Bookmark it. Run /books deploy again after adding new books to update.
+```
+
+**注意**：
+- 首次 deploy 约需 30 秒；后续更新约 10 秒
+- 部署的是静态快照，加新书后需重新运行 `/books stats` + `/books deploy`
+- 若想修改项目名，将 `--name my-books-library` 改为自定义名称（只能用小写字母和连字符）
 
 ---
 
@@ -572,7 +661,7 @@ Charts are clickable · Search filters in real-time · Click column headers to s
 
 ## 通用原则
 
-- **不中断用户**：除「书名重复」「status/edit 多结果匹配」外，所有命令直接执行，不询问确认
+- **不中断用户**：除「书名重复」「status/edit 多结果匹配」「stats 主题选择」外，所有命令直接执行，不询问确认
 - **识别失败不捏造**：字段识别不确定时留 `null`，并在输出中告知用户
 - **幂等性**：重复扫描同一本书跳过，不产生重复数据
 - **语言规则**：中文书（书名/作者为中文）保留中文；其余书籍 country / category / description / author_bio 用英文
