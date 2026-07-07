@@ -87,9 +87,17 @@ Library now has N books.
 **作用**：批量扫描指定文件夹内所有图片（jpg / jpeg / png / heic / webp）。
 
 **执行步骤**：
-1. 列出文件夹内所有图片文件
-2. HEIC 文件先转 jpg，识别后删除临时文件
-3. 逐张识别（逻辑同 `/books scan`）
+1. 列出文件夹内所有图片文件，统计总数
+2. **若超过 20 张，先询问用户**：
+
+```
+Found N images. Run a trial scan of the first 20 to check accuracy before processing all?
+  1. Yes, trial first 20
+  2. No, scan all N now
+```
+
+3. HEIC 文件先转 jpg，识别后删除临时文件
+4. 逐张识别（逻辑同 `/books scan`），每张约 1–3 秒
 4. 跳过已存在书目（书名匹配）
 5. 写入前对所有 description / author_bio 校验中文引号，自动替换
 6. 一次性写入 `books.json` 和 `books.md`

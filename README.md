@@ -1,5 +1,7 @@
 # Books — Personal Library Skill for Claude Code
 
+[中文 README →](./README_CN.md)
+
 A coding-agent skill that turns photos of your bookshelf into a structured, searchable library — complete with an interactive analytics dashboard, four visual themes, one-click PDF export, and Vercel deployment for multi-device access.
 
 No API keys. No accounts. No internet required to scan.
@@ -38,6 +40,7 @@ Point it at a photo → Claude reads the cover → the book is in your library. 
 - **Cover thumbnails** — Embedded as base64 in the HTML. No broken links, no external paths, works offline.
 - **JSON-safe writing** — Every write automatically strips Chinese curly quotes from text fields before touching `books.json`.
 - **English-first, Chinese-respectful** — Non-Chinese books use English for all metadata fields. Chinese books stay fully Chinese.
+- **Works beyond books** — The same skill handles wine labels, business cards, plant tags, and board game boxes. Books are the default; anything with a cover works.
 
 ---
 
@@ -365,6 +368,26 @@ Features under consideration, roughly in priority order:
 - **`/books note <title> <text>`** — Personal notes per book, visible on hover in the dashboard.
 - **`/books reading-log`** — Monthly reading pace, visible as a timeline.
 - **`/books suggest`** — Reading recommendation based on your existing library's patterns.
+
+---
+
+## Accuracy & Cost
+
+**Recognition accuracy: ~80–90%**
+
+- Clear, well-lit front covers: very high accuracy
+- Angled shots, spines, or low-contrast covers: some fields may be left as `null`
+- Uncertain fields are never guessed — they're left blank and reported to you
+
+**What affects accuracy:**
+- Blurry or partial covers → title/author may be wrong
+- Lesser-known authors → year and country often inferred, not confirmed
+- Internal pages, receipts, brochures → flagged as non-book and skipped
+
+**Cost & speed:**
+- Each image takes approximately 1–3 seconds
+- For large batches (20+ images), the skill will ask if you want to trial-scan the first 20 before committing to the full set — recommended for a new folder
+- Token usage scales with image count; very large batches (100+) are best split across multiple sessions
 
 ---
 
