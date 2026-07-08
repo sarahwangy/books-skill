@@ -1,6 +1,6 @@
 ---
 name: books
-description: 个人书库管理工具——扫描书籍封面照片，AI 识别书名/作者/类别/作者简介等信息，追加到本地书库，支持编辑、搜索、状态管理、统计报表和 JSON 导出。触发词：/books scan、/books scan-folder、/books isbn、/books list、/books edit、/books search、/books status、/books stats、/books present、/books deploy、/books export。
+description: 个人书库管理工具——扫描书籍封面照片，AI 识别书名/作者/类别/作者简介等信息，追加到本地书库，支持编辑、搜索、状态管理、统计报表和 JSON 导出。触发词：/books scan、/books scan-folder、/books isbn、/books list、/books edit、/books search、/books status、/books stats、/books present、/books deploy、/books export、/books excel、/books reflect、/books note-export、/books card。
 ---
 
 # books · 个人书库 Skill
@@ -1196,6 +1196,289 @@ Bookmark it. Run /books deploy again after adding new books to update.
 
 ---
 
+## 命令：/books reflect \<书名关键词\>
+
+**作用**：AI 根据书库中该书的已有信息（description、category、author_bio、notes），生成一份结构化读书感想，用户可直接使用或在此基础上修改。
+
+**执行步骤**：
+1. 在 `my_lovely_library/books.json` 中模糊匹配书名关键词，找到目标书
+2. 若匹配到多本，列出候选让用户确认
+3. 读取该书的：title、author、year、category、description、author_bio、notes、rating
+4. 生成以下结构的读书感想，用中文输出（原书为英文则中英均可）：
+
+```
+📖 《书名》· 作者 · 出版年
+
+── 一句话概括 ──
+[用一句话抓住这本书最核心的主张或气质]
+
+── 三个核心观点 ──
+1. [观点一，结合 description 提炼]
+2. [观点二]
+3. [观点三]
+
+── 让我印象最深的一点 ──
+[结合 notes 字段（若有）或 description，写一段100字左右的个人感想]
+
+── 三个值得思考的问题 ──
+1. [启发性问题，引导读者联系自身]
+2. [问题二]
+3. [问题三]
+
+── 推荐给 ──
+[一句话描述最适合读这本书的人]
+```
+
+5. 输出后询问用户：「要把这份感想保存到笔记吗？（存入 my_lovely_library/reflections/<书名>.md）」
+6. 若用户确认，写入文件并告知路径
+
+---
+
+## 命令：/books note-export \[format\]
+
+**作用**：把书库中所有有笔记（notes 字段非空）的书汇总，生成一份完整的读书笔记文档，可选 Markdown 或 PDF（通过浏览器打印）。
+
+**执行步骤**：
+1. 确保 `my_lovely_library/` 目录存在（`mkdir -p my_lovely_library`）
+2. 读取 `my_lovely_library/books.json`，筛选 `notes` 非空的书
+3. 将以下 Python 脚本写入 `/tmp/books_note_export.py`，运行，运行后删除脚本
+
+```python
+import json, os
+from datetime import date
+
+os.makedirs("my_lovely_library", exist_ok=True)
+with open("my_lovely_library/books.json", encoding="utf-8") as f:
+    books = json.load(f)
+
+noted = [b for b in books if b.get("notes")]
+noted.sort(key=lambda b: b.get("category",""))
+
+today = str(date.today())
+lines = [f"# 我的读书笔记\n\n生成日期：{today}　共 {len(noted)} 本有笔记\n\n---\n"]
+
+for b in noted:
+    stars = "★" * int(b.get("rating") or 0) + "☆" * (5 - int(b.get("rating") or 0))
+    lines.append(f"## 《{b['title']}》")
+    lines.append(f"**{b.get('author','')}** · {b.get('year','')} · {b.get('category','')} · {stars}\n")
+    if b.get("description"):
+        lines.append(f"> {b['description']}\n")
+    lines.append(b["notes"])
+    lines.append("\n---\n")
+
+md_out = f"my_lovely_library/reading-notes-{today}.md"
+with open(md_out, "w", encoding="utf-8") as f:
+    f.write("\n".join(lines))
+
+# Also generate printable HTML for PDF export
+html_lines = ["""<!DOCTYPE html><html lang="zh"><head>
+<meta charset="UTF-8">
+<style>
+  body{font-family:'Palatino Linotype',Palatino,'Book Antiqua',Georgia,serif;
+    max-width:700px;margin:0 auto;padding:3rem 2rem;color:#1a1a1a;line-height:1.8}
+  h1{font-size:1.8rem;font-weight:400;border-bottom:2px solid #1a281a;padding-bottom:0.5rem;color:#1a281a}
+  h2{font-size:1.2rem;font-weight:400;margin-top:2.5rem;color:#2c4a2e}
+  .meta{font-size:0.82rem;color:#888;margin-bottom:0.5rem;font-family:sans-serif}
+  blockquote{border-left:3px solid #a4c0a0;margin:0.5rem 0;padding:0.3rem 1rem;
+    color:#555;font-style:italic}
+  .note{background:#f9f6ef;padding:0.8rem 1rem;border-radius:2px;
+    white-space:pre-wrap;font-size:0.95rem}
+  hr{border:none;border-top:1px solid #e0ddd8;margin:2rem 0}
+  @media print{body{padding:1rem} h2{page-break-before:auto}}
+</style>
+</head><body>"""]
+html_lines.append(f"<h1>我的读书笔记</h1><p class='meta'>生成日期：{today} · 共 {len(noted)} 本</p>")
+for b in noted:
+    stars = "★" * int(b.get("rating") or 0) + "☆" * (5 - int(b.get("rating") or 0))
+    html_lines.append(f"<h2>《{b['title']}》</h2>")
+    html_lines.append(f"<div class='meta'>{b.get('author','')} · {b.get('year','')} · {b.get('category','')} · {stars}</div>")
+    if b.get("description"):
+        html_lines.append(f"<blockquote>{b['description']}</blockquote>")
+    html_lines.append(f"<div class='note'>{b['notes']}</div><hr>")
+html_lines.append("</body></html>")
+
+html_out = f"my_lovely_library/reading-notes-{today}.html"
+with open(html_out, "w", encoding="utf-8") as f:
+    f.write("\n".join(html_lines))
+
+print(f"✓ Markdown: {md_out}")
+print(f"✓ HTML (可打印为PDF): {html_out}")
+print(f"  共 {len(noted)} 本书有笔记")
+```
+
+4. 输出确认。若用户想导出 PDF，告知：在浏览器打开 HTML 文件 → 打印 → 另存为 PDF
+
+---
+
+## 命令：/books card \<书名关键词\>
+
+**作用**：为一本书生成一张精美的 HTML 读书卡片，可截图分享至小红书、朋友圈等社交平台。
+
+**执行步骤**：
+1. 在 `my_lovely_library/books.json` 中模糊匹配书名关键词，找到目标书
+2. 若匹配到多本，列出候选让用户确认
+3. 读取该书所有字段
+4. 将以下 Python 脚本写入 `/tmp/books_card.py`，运行，运行后删除脚本
+
+```python
+import json, os, re, sys
+
+os.makedirs("my_lovely_library", exist_ok=True)
+with open("my_lovely_library/books.json", encoding="utf-8") as f:
+    books = json.load(f)
+
+keyword = sys.argv[1] if len(sys.argv) > 1 else ""
+matches = [b for b in books if keyword.lower() in b.get("title","").lower()]
+if not matches:
+    print("未找到匹配书籍"); sys.exit(1)
+b = matches[0]
+
+def esc(s): return str(s or "").replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
+
+title    = esc(b.get("title",""))
+author   = esc(b.get("author",""))
+year     = esc(b.get("year",""))
+cat      = esc(b.get("category",""))
+country  = esc(b.get("country",""))
+desc     = esc(b.get("description",""))
+bio      = esc(b.get("author_bio",""))
+notes    = esc(b.get("notes",""))
+rating   = int(b.get("rating") or 0)
+stars    = "★" * rating + "☆" * (5 - rating)
+status   = esc(b.get("status",""))
+
+# Card HTML — centered light blue-gray style, 340px wide, designed for screenshot/share
+html = f"""<!DOCTYPE html><html lang="zh"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{title}</title>
+<style>
+* {{ box-sizing:border-box; margin:0; padding:0; }}
+body {{
+  width:340px;
+  background:#edf2f7;
+  font-family:'Gill Sans','Gill Sans MT',Calibri,'Trebuchet MS',sans-serif;
+  display:flex; justify-content:center; align-items:flex-start;
+  padding:2rem 1rem;
+  min-height:480px;
+}}
+.card {{
+  width:300px;
+  background:#f2f6fa;
+  border-radius:4px;
+  box-shadow:0 4px 24px rgba(0,0,0,0.1), 0 1px 4px rgba(0,0,0,0.06);
+  padding:2rem 1.6rem 1.6rem;
+  display:flex; flex-direction:column;
+  align-items:center; text-align:center; gap:0;
+}}
+.eyebrow {{
+  font-size:0.54rem; letter-spacing:0.28em; text-transform:uppercase;
+  color:#8aabab; margin-bottom:0.7rem;
+}}
+.illustration {{ margin:0.4rem 0 1rem; }}
+.title {{
+  font-family:'Palatino Linotype',Palatino,'Book Antiqua',Georgia,serif;
+  font-size:1.15rem; font-weight:400; color:#1a3a3a;
+  line-height:1.25; margin-bottom:0.35rem;
+}}
+.author {{
+  font-size:0.72rem; color:#5a8a8a; letter-spacing:0.06em;
+  margin-bottom:1rem;
+}}
+.rule {{ width:2rem; height:1px; background:#c0d4d4; margin:0 auto 1rem; }}
+.desc {{
+  font-size:0.72rem; color:#4a6a6a; line-height:1.7;
+  margin-bottom:1rem; max-width:22ch;
+}}
+.notes-box {{
+  background:rgba(42,122,122,0.07); border-left:2px solid #5a9a9a;
+  padding:0.6rem 0.8rem; margin-bottom:1rem;
+  font-size:0.68rem; color:#3a6a6a; line-height:1.6;
+  font-style:italic; text-align:left;
+  border-radius:0 2px 2px 0; width:100%;
+}}
+.pills {{
+  display:flex; gap:0.35rem; flex-wrap:wrap;
+  justify-content:center; margin-bottom:0.8rem;
+}}
+.pill {{
+  background:rgba(42,122,122,0.1); border:1px solid rgba(42,122,122,0.2);
+  border-radius:2rem; padding:0.15rem 0.55rem;
+  font-size:0.56rem; letter-spacing:0.1em; color:#2a7a7a; text-transform:uppercase;
+}}
+.stars {{ font-size:0.8rem; color:#c8a040; letter-spacing:0.1em; margin-bottom:0.6rem; }}
+.branding {{
+  font-size:0.5rem; letter-spacing:0.2em; text-transform:uppercase;
+  color:#b0c4c4; margin-top:0.2rem;
+}}
+</style>
+</head><body>
+<div class="card">
+  <div class="eyebrow">My Lovely Library</div>
+  <div class="illustration"><svg width="160" height="140" viewBox="0 0 160 140" xmlns="http://www.w3.org/2000/svg">
+  <rect x="10" y="115" width="140" height="18" rx="2" fill="#e07b6a"/>
+  <rect x="10" y="115" width="8" height="18" rx="1" fill="#c96050"/>
+  <line x1="10" y1="115" x2="150" y2="115" stroke="#c96050" stroke-width="0.5"/>
+  <line x1="10" y1="133" x2="150" y2="133" stroke="#c96050" stroke-width="0.5"/>
+  <rect x="14" y="99" width="132" height="17" rx="2" fill="#f0c040"/>
+  <rect x="14" y="99" width="8" height="17" rx="1" fill="#d8a820"/>
+  <line x1="14" y1="99" x2="146" y2="99" stroke="#d8a820" stroke-width="0.5"/>
+  <rect x="18" y="83" width="122" height="17" rx="2" fill="#b8a4d4"/>
+  <rect x="18" y="83" width="8" height="17" rx="1" fill="#9a84bc"/>
+  <line x1="18" y1="83" x2="140" y2="83" stroke="#9a84bc" stroke-width="0.5"/>
+  <polygon points="100,83 106,83 106,95 103,92 100,95" fill="#e07b6a"/>
+  <rect x="22" y="68" width="114" height="16" rx="2" fill="#f0b4a8"/>
+  <rect x="22" y="68" width="8" height="16" rx="1" fill="#d89488"/>
+  <line x1="22" y1="68" x2="136" y2="68" stroke="#d89488" stroke-width="0.5"/>
+  <rect x="20" y="53" width="118" height="16" rx="2" fill="#8ab89a"/>
+  <rect x="20" y="53" width="8" height="16" rx="1" fill="#6a9878"/>
+  <line x1="20" y1="53" x2="138" y2="53" stroke="#6a9878" stroke-width="0.5"/>
+  <rect x="28" y="36" width="102" height="18" rx="2" fill="#2a7a7a"/>
+  <rect x="28" y="36" width="9" height="18" rx="1" fill="#1a5a5a"/>
+  <rect x="28" y="44" width="102" height="2" rx="1" fill="#1a4a4a" opacity="0.4"/>
+  <line x1="28" y1="36" x2="130" y2="36" stroke="#1a5a5a" stroke-width="0.5"/>
+  <line x1="28" y1="54" x2="130" y2="54" stroke="#1a5a5a" stroke-width="0.5"/>
+  <ellipse cx="80" cy="136" rx="65" ry="4" fill="rgba(0,0,0,0.07)"/>
+</svg></div>
+  <div class="title">{title}</div>
+  <div class="author">{author}{"  ·  " + year if year else ""}</div>
+  <div class="rule"></div>
+  <div class="desc">{desc}</div>
+  {"<div class='notes-box'>" + notes + "</div>" if notes else ""}
+  <div class="pills">
+    {"<div class='pill'>" + cat + "</div>" if cat else ""}
+    {"<div class='pill'>" + country + "</div>" if country else ""}
+    {"<div class='pill'>" + status + "</div>" if status else ""}
+  </div>
+  {"<div class='stars'>" + stars + "</div>" if rating else ""}
+  <div class="branding">✦ Read · Reflect · Remember ✦</div>
+</div>
+</body></html>"""
+
+slug = re.sub(r'[^\\w\\u4e00-\\u9fff]+', '-', b.get("title","book"))[:40]
+out  = f"my_lovely_library/card-{slug}.html"
+with open(out, "w", encoding="utf-8") as f:
+    f.write(html)
+print(f"✓ Card: {out}")
+print(f"  截图尺寸建议：340×500px（浏览器缩放至100%）")
+```
+
+5. 生成后自动用 `open` 打开 HTML 文件供预览
+6. 告知用户：在浏览器按 `Cmd+Shift+4`（macOS）截图，或用 DevTools 设置固定尺寸截图
+
+**卡片包含**：
+- 书名（大号衬线字体）
+- 作者 + 出版年
+- 书籍描述
+- 个人笔记（若有，带引用样式）
+- 类别 / 国家 / 阅读状态标签
+- 评分星级
+- "My Lovely Library" 品牌署名
+
+**卡片风格**：浅蓝灰背景（#edf2f7），白卡片带阴影，居中排版，彩色书堆 SVG 插画，青绿色（teal #2a7a7a）配色，340×500px，适合手机截图分享至小红书/朋友圈。
+
+---
+
 ## 命令：/books export json
 
 **作用**：导出干净的 JSON 文件，可导入 Notion、Obsidian 等工具。
@@ -1210,6 +1493,227 @@ Bookmark it. Run /books deploy again after adding new books to update.
 ✓ Exported: my_lovely_library/books-export.json
   N records
 ```
+
+---
+
+## 命令：/books excel
+
+**作用**：从 `my_lovely_library/books.json` 生成 Excel 工作簿（`.xlsx`），包含：
+- **Sheet 1 — 书单**：完整书单表格，带自动筛选，固定首行，关键列高亮
+- **Sheet 2 — 统计**：各类别数量、作者性别分布、国家分布、状态分布，带简单数据条
+
+**执行步骤**：
+1. 确保 `my_lovely_library/` 目录存在（`mkdir -p my_lovely_library`）
+2. 读取 `my_lovely_library/books.json`
+3. 将以下 Python 脚本写入 `/tmp/books_excel.py`，运行，运行后删除脚本
+
+```python
+import json, sys, os
+from collections import Counter
+from datetime import datetime
+
+try:
+    import openpyxl
+    from openpyxl.styles import (PatternFill, Font, Alignment,
+                                  Border, Side, GradientFill)
+    from openpyxl.utils import get_column_letter
+    from openpyxl.formatting.rule import DataBarRule, ColorScaleRule
+except ImportError:
+    os.system("pip3 install --break-system-packages openpyxl -q")
+    import openpyxl
+    from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    from openpyxl.formatting.rule import DataBarRule
+
+os.makedirs("my_lovely_library", exist_ok=True)
+
+with open("my_lovely_library/books.json", encoding="utf-8") as f:
+    books = json.load(f)
+
+wb = openpyxl.Workbook()
+
+# ── Styles ──────────────────────────────────────────────────────────────────
+HDR_FILL   = PatternFill("solid", fgColor="1A281A")   # deep forest
+HDR_FONT   = Font(color="F9F6EF", bold=True, size=10, name="Calibri")
+EVEN_FILL  = PatternFill("solid", fgColor="F4F0E8")
+THIN       = Side(style="thin", color="D4C9B8")
+BORDER     = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
+WRAP       = Alignment(wrap_text=True, vertical="top")
+CENTER     = Alignment(horizontal="center", vertical="top")
+STAT_HDR_FILL = PatternFill("solid", fgColor="2C4A2E")
+STAT_HDR_FONT = Font(color="A4C0A0", bold=True, size=10, name="Calibri")
+ACC_FILL   = PatternFill("solid", fgColor="A4C0A0")
+ACC_FONT   = Font(color="1A281A", bold=True, size=10)
+
+def hdr_cell(ws, row, col, value, fill=None, font=None, align=None):
+    c = ws.cell(row=row, column=col, value=value)
+    c.fill  = fill  or HDR_FILL
+    c.font  = font  or HDR_FONT
+    c.alignment = align or CENTER
+    c.border = BORDER
+    return c
+
+def data_cell(ws, row, col, value, even=False, align=None):
+    c = ws.cell(row=row, column=col, value=value)
+    if even:
+        c.fill = EVEN_FILL
+    c.alignment = align or WRAP
+    c.border = BORDER
+    return c
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SHEET 1 — 书单
+# ══════════════════════════════════════════════════════════════════════════════
+ws1 = wb.active
+ws1.title = "📚 书单"
+
+COLS = [
+    ("书名",         "title",        30),
+    ("作者",         "author",       18),
+    ("性别",         "author_gender", 6),
+    ("类别",         "category",     14),
+    ("国家",         "country",      10),
+    ("出版年",       "year",          8),
+    ("状态",         "status",        8),
+    ("评分",         "rating",        6),
+    ("ISBN",         "isbn",         14),
+    ("描述",         "description",  36),
+    ("笔记",         "notes",        24),
+    ("添加日期",     "date_added",   12),
+]
+
+# header row
+for ci, (label, _, width) in enumerate(COLS, 1):
+    hdr_cell(ws1, 1, ci, label)
+    ws1.column_dimensions[get_column_letter(ci)].width = width
+
+ws1.row_dimensions[1].height = 22
+ws1.freeze_panes = "A2"
+ws1.auto_filter.ref = ws1.dimensions
+
+STATUS_FILL = {
+    "读完":    PatternFill("solid", fgColor="C8E6C9"),
+    "在读":    PatternFill("solid", fgColor="FFF9C4"),
+    "想读":    PatternFill("solid", fgColor="E3F2FD"),
+    "搁置":    PatternFill("solid", fgColor="F3E5F5"),
+}
+
+for ri, book in enumerate(books, 2):
+    even = ri % 2 == 0
+    for ci, (_, field, _) in enumerate(COLS, 1):
+        val = book.get(field)
+        if val is None:
+            val = ""
+        align = CENTER if field in ("author_gender","year","status","rating","isbn","date_added") else WRAP
+        c = data_cell(ws1, ri, ci, val, even=even, align=align)
+        # color-code status column
+        if field == "status" and val in STATUS_FILL:
+            c.fill = STATUS_FILL[val]
+            c.font = Font(size=10, name="Calibri", bold=True)
+        # color rating ≥ 4
+        if field == "rating" and isinstance(val, (int, float)) and val >= 4:
+            c.fill = PatternFill("solid", fgColor="FFF176")
+            c.font = Font(size=10, name="Calibri", bold=True)
+    ws1.row_dimensions[ri].height = 40
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SHEET 2 — 统计
+# ══════════════════════════════════════════════════════════════════════════════
+ws2 = wb.create_sheet("📊 统计")
+
+def stat_block(ws, start_row, start_col, title, counter, max_bars=12):
+    r, c = start_row, start_col
+    ws.merge_cells(start_row=r, start_column=c, end_row=r, end_column=c+2)
+    tc = ws.cell(row=r, column=c, value=title)
+    tc.fill = STAT_HDR_FILL
+    tc.font = STAT_HDR_FONT
+    tc.alignment = CENTER
+    tc.border = BORDER
+    ws.row_dimensions[r].height = 20
+    r += 1
+    for label_h, num_h in [("项目","数量")]:
+        hdr_cell(ws, r, c,   label_h, align=WRAP)
+        hdr_cell(ws, r, c+1, num_h,   align=CENTER)
+        hdr_cell(ws, r, c+2, "占比",  align=CENTER)
+        ws.row_dimensions[r].height = 18
+        r += 1
+    total_n = sum(counter.values())
+    for i, (label, cnt) in enumerate(counter.most_common(max_bars)):
+        even = i % 2 == 0
+        data_cell(ws, r, c,   label, even=even, align=WRAP)
+        nc = data_cell(ws, r, c+1, cnt, even=even, align=CENTER)
+        nc.number_format = "0"
+        pct = round(cnt / total_n * 100, 1) if total_n else 0
+        pc = data_cell(ws, r, c+2, pct/100, even=even, align=CENTER)
+        pc.number_format = "0.0%"
+        ws.row_dimensions[r].height = 16
+        r += 1
+    return r + 1  # next free row
+
+# column widths for stats sheet
+for ci, w in [(1,22),(2,8),(3,8),(5,20),(6,8),(7,8),(9,16),(10,8),(11,8)]:
+    ws2.column_dimensions[get_column_letter(ci)].width = w
+
+cats      = Counter(b["category"]      for b in books if b.get("category"))
+countries = Counter(b["country"]       for b in books if b.get("country"))
+genders   = Counter(b["author_gender"] for b in books if b.get("author_gender"))
+statuses  = Counter((b.get("status") or "未设置") for b in books)
+years     = Counter(str(b["year"])     for b in books if b.get("year"))
+
+next_r = 2
+next_r = stat_block(ws2, next_r, 1, f"📖 类别分布（共 {len(books)} 本）", cats)
+stat_block(ws2, 2,     5, "🌍 国家分布",   countries)
+stat_block(ws2, 2,     9, "⚧ 作者性别",   genders)
+stat_block(ws2, next_r,1, "📋 阅读状态",  statuses)
+stat_block(ws2, next_r,5, "📅 出版年代",  years, max_bars=15)
+
+# summary box top-right
+sr = 2
+for label, val in [
+    ("总藏书", len(books)),
+    ("已读完", statuses.get("读完", 0)),
+    ("在读中", statuses.get("在读", 0)),
+    ("想读",   statuses.get("想读", 0)),
+    ("国家数", len(countries)),
+    ("类别数", len(cats)),
+]:
+    hdr_cell(ws2, sr, 13, label, fill=PatternFill("solid",fgColor="1A281A"), align=CENTER)
+    vc = ws2.cell(row=sr, column=14, value=val)
+    vc.fill = ACC_FILL; vc.font = ACC_FONT; vc.alignment = CENTER; vc.border = BORDER
+    ws2.row_dimensions[sr].height = 18
+    sr += 1
+
+ws2.column_dimensions[get_column_letter(13)].width = 10
+ws2.column_dimensions[get_column_letter(14)].width = 8
+
+# ── Save ─────────────────────────────────────────────────────────────────────
+ts  = datetime.now().strftime("%Y%m%d")
+out = f"my_lovely_library/books-{ts}.xlsx"
+wb.save(out)
+print(f"✓ Exported: {out}")
+print(f"  {len(books)} books · Sheet 1: 书单（{len(COLS)} columns, auto-filter）· Sheet 2: 统计")
+```
+
+4. 输出确认：
+
+```
+✓ Exported: my_lovely_library/books-YYYYMMDD.xlsx
+  N books · Sheet 1: 书单（12 columns, auto-filter）· Sheet 2: 统计
+```
+
+**Sheet 1 说明**：
+- 首行固定、全列自动筛选
+- 状态列按颜色区分：🟢 读完 / 🟡 在读 / 🔵 想读 / 🟣 搁置
+- 评分 ≥ 4 的单元格高亮黄色
+- 隔行浅色底纹
+
+**Sheet 2 说明**：
+- 类别分布（含占比%）
+- 国家分布
+- 作者性别分布
+- 阅读状态分布
+- 出版年代分布
+- 右侧汇总卡片（总藏书 / 已读完 / 在读 / 想读 / 国家数 / 类别数）
 
 ---
 
