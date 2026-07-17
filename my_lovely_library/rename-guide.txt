@@ -1,0 +1,29 @@
+书籍照片重命名建议
+生成于 2026-07-07
+================================
+
+原文件名 → 建议文件名
+
+3fd10619bd76bd47227637920167250d.JPG → 自我成长_Quit_AnnieDuke.jpg
+517.PNG                              → 游记散文_南极之南_毕淑敏.jpg
+IMG_0123.HEIC                        → 回忆录_TheGirlWhoTouchedTheStars_BonnieHancock.heic
+IMG_0124.HEIC                        → 回忆录_TopEndGirl_MirandaTapsell.heic
+IMG_0125.HEIC                        → 回忆录_MyAnimalsAndOtherAnimals_BillBailey.heic
+IMG_0126.HEIC                        → 游记散文_CiaoBella_KateLangbroek.heic
+IMG_0127.HEIC                        → 历史_SomewhereABoyAndABear_GylesBrandreth.heic
+IMG_0128.HEIC                        → 自我成长_SimplyMore_CynthiaErivo.heic
+IMG_0129.HEIC                        → 自我成长_SwellBeing_BlakeJohnston.heic
+IMG_0130.HEIC                        → 回忆录_MaybeIDontBelongHere_DavidHarewood.heic
+IMG_0131.HEIC                        → 回忆录_FromScratch_TembiLocke.heic
+IMG_0173.HEIC                        → 游记散文_LoveFromVenice_GillJohnson.heic
+IMG_0177.HEIC                        → 心理_BigFeelings_FosslienDuffy.heic
+IMG_0197.HEIC                        → 科普_BeingYou_AnilSeth.heic
+IMG_0198.HEIC                        → 回忆录_TooMuch_TomAllen.heic
+
+================================
+已跳过（非书籍封面）：
+IMG_0121.HEIC  — 书籍内页
+IMG_0122.HEIC  — 书籍内页
+IMG_0174.HEIC  — 旅行手册（非书籍）
+IMG_0175.HEIC  — 旅行手册内页（非书籍）
+IMG_0176.HEIC  — 旅行手册封面（非书籍）
