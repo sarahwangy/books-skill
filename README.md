@@ -6,6 +6,8 @@ A coding-agent skill that turns photos of your bookshelf into a structured, sear
 
 No API keys. No accounts. No internet required to scan.
 
+![Books skill demo — clicking a chart bar filters the table instantly, then a search narrows it further](assets/books-scan-skills.gif)
+
 ---
 
 ## What This Does
@@ -251,6 +253,8 @@ The dashboard includes:
 - **Cover thumbnails** — base64-embedded, no external paths
 - **⎙ Print / PDF button** — browser print dialog with clean print CSS
 
+![Dashboard — Classic theme, showing stat cards, country/gender/category charts, and the sortable book table with cover thumbnails](assets/dashboard-screenshot.png)
+
 The HTML file is fully self-contained. Send it to anyone; it needs no server.
 
 ---
@@ -345,6 +349,8 @@ Generates `my_lovely_library/books-present.html` — a data-driven slide deck bu
 
 Same four themes as `/books stats`. If no theme is given, the skill asks you to choose.
 
+![Present style previews — several slide-deck themes generated from real library data](assets/present-style.png)
+
 The deck adapts to your data — slides for "Reading Now" and "Top Rated" only appear when you have books in those states.
 
 **Slides generated:**
@@ -396,12 +402,20 @@ Exports a clean, formatted JSON file for Notion, Obsidian, or any other tool.
 
 Writes `my_lovely_library/books-export.json` with `indent=2` formatting. Same schema as `my_lovely_library/books.json`.
 
+Import it into Notion and you've got a full personal library database — table view for browsing/filtering by category, gallery view for a visual shelf:
+
+![Notion table view — imported book data with gender, country, category, and cover columns](assets/notion-export-table.png)
+
+![Notion gallery view — cover images laid out as a visual bookshelf, grouped by category](assets/notion-export-gallery.png)
+
 ---
 
 ## Dashboard Themes
 
 ### Classic
 Warm beige canvas, steel-blue accent, soft sand borders. The default. Works in any light and feels like a well-organised reading nook.
+
+![Dashboard — Classic theme](assets/dashboard-screenshot.png)
 
 ### Dark
 Deep navy background (`#0f172a`), amber accent, slate card surfaces. Chart colours shift to warm yellows and teals. Comfortable for evening reading sessions.

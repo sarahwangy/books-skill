@@ -87,6 +87,10 @@ git clone https://github.com/sarahwangy/books-skill .agents/skills/books
 
 **状态可选值**：`unread`（未读）· `reading`（在读）· `read`（已读）· `paused`（暂停）
 
+`/books present` 生成的幻灯片有多种风格可选，内容全部来自真实书库数据：
+
+![Present 幻灯片风格预览](assets/present-style.png)
+
 ---
 
 ## 统计报表主题
